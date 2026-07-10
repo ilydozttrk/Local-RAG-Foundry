@@ -1,0 +1,50 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual Environment
+.venv/
+venv/
+
+# Environment Variables
+.env
+.env.*
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Models
+models/
+*.onnx
+*.gguf
+*.bin
+*.safetensors
+
+# Generated data
+data/processed/
+data/embeddings/
+
+# OS
+.DS_Store
+Thumbs.db
