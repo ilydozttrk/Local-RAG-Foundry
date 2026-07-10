@@ -1,0 +1,2 @@
+foundry-local-sdk-winml==1.2.3
+openai==2.45.0
