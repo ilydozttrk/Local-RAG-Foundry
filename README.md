@@ -2,34 +2,55 @@
 
 ## Overview
 
-This project aims to develop a fully offline Retrieval-Augmented Generation (RAG) AI Assistant using Microsoft Foundry Local.
+This project aims to develop a local-first Retrieval-Augmented Generation (RAG) AI Assistant using Microsoft Foundry Local.
 
-The assistant will retrieve relevant information from a local knowledge base and generate grounded responses without requiring cloud inference.
+The assistant retrieves relevant information from a local knowledge base and generates context-grounded responses using a locally running language model. After the required models and dependencies are downloaded, normal inference does not require a cloud LLM API.
 
 This project is being developed as part of the Microsoft AI Innovators Summer School and an undergraduate software engineering internship.
 
 ---
 
-## Project Goals
+## Project Goal
 
-- Build a fully offline AI assistant
-- Learn Microsoft Foundry Local
-- Implement Retrieval-Augmented Generation (RAG)
-- Create a local SQLite knowledge base
-- Implement semantic search using embeddings
-- Develop a clean Streamlit user interface
-- Document the entire development process
+The main goal of this project is to design and implement a local RAG architecture that combines document retrieval, semantic search, and local language model inference.
+
+The system is designed to process local documents, divide them into text chunks, generate embeddings, store document data locally, retrieve relevant context for user queries, and generate grounded answers through Microsoft Foundry Local.
+
+A key architectural objective is to reduce hallucination by validating retrieval results before calling the local language model. If sufficient relevant context cannot be retrieved, the application is designed to return a fallback response instead of allowing the model to generate an unsupported answer.
 
 ---
 
-## Planned Technologies
+## Features
 
-- Microsoft Foundry Local
+- Local-first RAG architecture
+- Local LLM inference with Microsoft Foundry Local
+- PDF and TXT document processing
+- Text chunking pipeline
+- Document and query embedding generation
+- Local SQLite storage
+- Semantic retrieval using cosine similarity
+- Top-K relevant chunk selection
+- Retrieval relevance threshold validation
+- Hallucination reduction through context-grounded prompting
+- Fallback response when sufficient context is unavailable
+- Streamlit-based user interface
+- Local document metadata and text chunk management
+- Source metadata support for generated answers
+
+---
+
+## Tech Stack
+
 - Python 3.12
-- OpenAI Python SDK
+- Microsoft Foundry Local
+- Foundry Local Python SDK
+- Local Language Models
+- Embedding Models
 - SQLite
 - Streamlit
-- Git & GitHub
+- Cosine Similarity
+- Git
+- GitHub
 
 ---
 
@@ -39,11 +60,18 @@ This project is being developed as part of the Microsoft AI Innovators Summer Sc
 
 - [x] Project initialized
 - [x] Development environment configured
-- [x] Foundry Local installed
 - [x] Python virtual environment created
+- [x] Microsoft Foundry Local installed and configured
 - [x] Project structure created
-- [ ] First local model inference
-- [ ] Prompt engineering
+- [x] Local model downloaded and loaded
+- [x] First local model inference completed
+- [x] Foundry Local SDK integration tested
+- [x] Prompt engineering experiments completed
+- [x] System and user prompt behavior analyzed
+- [x] Context-grounded prompting tested
+- [x] Hallucination behavior analyzed
+- [x] Few-shot prompting tested
+- [x] Final software architecture designed
 
 ---
 
@@ -51,27 +79,137 @@ This project is being developed as part of the Microsoft AI Innovators Summer Sc
 
 ```text
 Local-RAG-Foundry/
-
-├── app/
-├── data/
-├── docs/
-├── prompts/
-├── tests/
-
-├── main.py
-├── requirements.txt
-├── README.md
-└── .gitignore
+|
+|-- app/
+|   |-- __init__.py
+|   |-- hello_model.py
+|   `-- prompt_experiments.py
+|
+|-- data/
+|
+|-- docs/
+|   `-- Local_RAG_Final_Software_Architecture.drawio
+|
+|-- prompts/
+|
+|-- tests/
+|
+|-- main.py
+|-- requirements.txt
+|-- README.md
+`-- .gitignore
 ```
+
+### Folder Responsibilities
+
+- `app/` - Core application modules and local model experiments
+- `data/` - Local documents, application data, and future database files
+- `docs/` - Software architecture and project documentation
+- `prompts/` - Reusable system and RAG prompt templates
+- `tests/` - Unit and integration tests
+
+---
+
+## Software Architecture
+
+The project consists of two main pipelines.
+
+### Ingestion Pipeline
+
+```text
+PDF / TXT Documents
+        |
+        v
+Document Parsing
+        |
+        v
+Text Chunking
+        |
+        v
+Document Embedding Generation
+        |
+        v
+SQLite Storage
+```
+
+The ingestion pipeline processes local documents, divides the extracted text into smaller chunks, generates embedding vectors, and stores document metadata, text chunks, and serialized embeddings in SQLite.
+
+### Query and Response Pipeline
+
+```text
+User Query
+    |
+    v
+Query Processing
+    |
+    v
+Query Embedding Generation
+    |
+    v
+Semantic Retrieval
+    |
+    v
+Cosine Similarity + Top-K Selection
+    |
+    v
+Similarity Score >= Threshold?
+       / \
+     Yes  No
+      |    |
+      |    `--> Fallback Response
+      |         LLM Not Called
+      v
+Context Builder
+      |
+      v
+Prompt Assembly
+      |
+      v
+Microsoft Foundry Local
+Local Chat LLM
+      |
+      v
+Generated Answer + Source Metadata
+```
+
+The query pipeline retrieves relevant context before invoking the local language model. Retrieval results are validated using a similarity threshold. If sufficient context is unavailable, the system returns a fallback response without calling the LLM.
+
+---
+
+## Prompt Engineering Experiments
+
+Initial prompt engineering experiments were conducted using a locally running Qwen2.5 0.5B model through Microsoft Foundry Local.
+
+The experiments compared:
+
+1. User prompt only
+2. System prompt and user prompt
+3. Context-grounded prompting
+4. Rule-based hallucination reduction
+5. Few-shot hallucination reduction
+
+The experiments demonstrated that prompt instructions alone were not sufficient to completely prevent hallucination in the tested small language model.
+
+When explicit context was provided, the model produced the correct database information. However, when the requested information was absent from the context, the model still generated unsupported cloud provider names despite strict answer rules.
+
+These observations directly influenced the final software architecture. A retrieval validation layer was added so that the application can return a fallback response before calling the LLM when sufficient relevant context is unavailable.
 
 ---
 
 ## Roadmap
 
-- Week 1 — Environment Setup
-- Week 2 — Embeddings & Database
-- Week 3 — Retrieval Pipeline
-- Week 4 — Complete Local RAG Assistant
+- Week 1 - RAG foundations, Foundry Local setup, local inference, prompt engineering, and software architecture
+- Week 2 - Document processing, text chunking, embeddings, and SQLite storage
+- Week 3 - Semantic retrieval, cosine similarity, Top-K selection, and RAG pipeline integration
+- Week 4 - Streamlit interface, testing, optimization, documentation, and final project delivery
+
+---
+
+## Offline Usage
+
+The application follows a local-first architecture.
+
+Initial setup, dependency installation, and model download may require an internet connection. After the required resources are available locally, normal application inference is designed to run without a cloud LLM API.
 
 ---
 
