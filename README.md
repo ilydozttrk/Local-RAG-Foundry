@@ -400,4 +400,6 @@ Initial setup, dependency installation, and model download may require an intern
 
 ## License
 
-This repository is developed for educational and internship purposes.
+This project is licensed under the MIT License.
+
+See the [LICENSE](LICENSE) file for details.
