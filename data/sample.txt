@@ -1,0 +1,5 @@
+Retrieval-Augmented Generation combines retrieval and generation.
+
+The system retrieves relevant document chunks before sending context to the local language model.
+
+Microsoft Foundry Local allows the model to run entirely on the user's device.
