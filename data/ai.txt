@@ -1,0 +1,5 @@
+Artificial Intelligence enables computers
+to solve problems that normally require
+human intelligence.
+
+Machine learning is a branch of AI.

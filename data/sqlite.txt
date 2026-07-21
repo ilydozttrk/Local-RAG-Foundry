@@ -1,0 +1,5 @@
+SQLite is a lightweight relational database.
+
+It stores all data in a single file.
+
+SQLite is commonly used in local desktop and mobile applications.

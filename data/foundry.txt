@@ -1,0 +1,5 @@
+Microsoft Foundry Local allows
+large language models to run
+directly on local hardware.
+
+No cloud connection is required.

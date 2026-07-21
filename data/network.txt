@@ -1,0 +1,7 @@
+Computer networks enable devices
+to communicate with each other.
+
+Routers and switches are common
+network devices.
+
+TCP/IP is the foundation of modern networking.
