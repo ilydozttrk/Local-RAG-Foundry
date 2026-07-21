@@ -154,6 +154,36 @@ def get_embeddings():
 
     return embeddings
 
+def get_chunks_with_embeddings(model_name):
+    """
+    Retrieve chunks together with their embedding vectors.
+    """
+
+    with connect_database() as connection:
+        cursor = connection.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                chunks.id AS chunk_id,
+                chunks.document_id,
+                chunks.chunk_index,
+                chunks.content,
+                embeddings.model_name,
+                embeddings.dimension,
+                embeddings.vector
+            FROM chunks
+            INNER JOIN embeddings
+                ON embeddings.chunk_id = chunks.id
+            WHERE embeddings.model_name = ?
+            ORDER BY chunks.id
+            """,
+            (model_name,),
+        )
+
+        rows = cursor.fetchall()
+
+    return rows
 
 def main():
     """
