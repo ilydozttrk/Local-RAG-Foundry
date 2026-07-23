@@ -6,9 +6,7 @@ from app.similarity import cosine_similarity
 
 
 class RetrievalResult(TypedDict):
-    """
-    Represent a ranked retrieval result.
-    """
+    """Represent a ranked semantic retrieval result."""
 
     chunk_id: int
     document_id: int
@@ -19,17 +17,17 @@ class RetrievalResult(TypedDict):
 
 
 def parse_embedding(vector_text: str) -> list[float]:
-    """
-    Convert a comma-separated embedding string into a float list.
-    """
+    """Convert a comma-separated embedding string into a float list."""
 
-    if not vector_text.strip():
+    cleaned_vector = vector_text.strip()
+
+    if not cleaned_vector:
         raise ValueError("Embedding vector cannot be empty.")
 
     try:
         return [
             float(value.strip())
-            for value in vector_text.split(",")
+            for value in cleaned_vector.split(",")
         ]
     except ValueError as error:
         raise ValueError(
@@ -41,14 +39,14 @@ def retrieve_top_k(
     query: str,
     top_k: int = 3,
 ) -> list[RetrievalResult]:
-    """
-    Retrieve the most semantically similar chunks for a query.
-    """
+    """Retrieve the most semantically similar chunks for a query."""
 
     if not isinstance(query, str):
         raise TypeError("Query must be a string.")
 
-    if not query.strip():
+    cleaned_query = query.strip()
+
+    if not cleaned_query:
         raise ValueError("Query cannot be empty.")
 
     if not isinstance(top_k, int):
@@ -65,7 +63,7 @@ def retrieve_top_k(
     embedder = QueryEmbedder()
 
     try:
-        query_embedding = embedder.generate_embedding(query)
+        query_embedding = embedder.generate_embedding(cleaned_query)
     finally:
         embedder.unload()
 
@@ -76,7 +74,7 @@ def retrieve_top_k(
 
         if len(query_embedding) != len(chunk_embedding):
             raise ValueError(
-                f"Embedding dimension mismatch for chunk "
+                "Embedding dimension mismatch for chunk "
                 f"{row['chunk_id']}: "
                 f"query={len(query_embedding)}, "
                 f"chunk={len(chunk_embedding)}"
@@ -87,30 +85,27 @@ def retrieve_top_k(
             chunk_embedding,
         )
 
-        results.append(
-            {
-                "chunk_id": row["chunk_id"],
-                "document_id": row["document_id"],
-                "chunk_index": row["chunk_index"],
-                "content": row["content"],
-                "model_name": row["model_name"],
-                "similarity_score": similarity_score,
-            }
-        )
+        result: RetrievalResult = {
+            "chunk_id": row["chunk_id"],
+            "document_id": row["document_id"],
+            "chunk_index": row["chunk_index"],
+            "content": row["content"],
+            "model_name": row["model_name"],
+            "similarity_score": similarity_score,
+        }
 
-    ranked_results = sorted(
-        results,
+        results.append(result)
+
+    results.sort(
         key=lambda result: result["similarity_score"],
         reverse=True,
     )
 
-    return ranked_results[:top_k]
+    return results[:top_k]
 
 
 def main() -> None:
-    """
-    Test the retrieval pipeline.
-    """
+    """Run a standalone semantic retrieval smoke test."""
 
     query = "What does the sample document contain?"
     top_k = 3
