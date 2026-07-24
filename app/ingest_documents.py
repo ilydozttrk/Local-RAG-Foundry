@@ -1,12 +1,19 @@
 from pathlib import Path
 
-from app.chunking import SUPPORTED_EXTENSIONS, chunk_text, read_document
+from app.chunking import (
+    SUPPORTED_EXTENSIONS,
+    chunk_text,
+    read_document,
+)
 from app.database_manager import (
     insert_chunk,
     insert_document,
     insert_embedding,
 )
-from app.query_embedding import MODEL_ALIAS, QueryEmbedder
+from app.query_embedding import (
+    MODEL_ALIAS,
+    QueryEmbedder,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -19,8 +26,13 @@ DEFAULT_MINIMUM_CHUNK_SIZE = 50
 
 def find_documents(data_directory: Path) -> list[Path]:
     """
-    Find supported documents in the data directory.
+    Find all supported documents inside the data directory.
     """
+
+    if not isinstance(data_directory, Path):
+        raise TypeError(
+            "data_directory must be a pathlib.Path."
+        )
 
     if not data_directory.exists():
         raise FileNotFoundError(
@@ -39,6 +51,24 @@ def find_documents(data_directory: Path) -> list[Path]:
     return sorted(documents)
 
 
+def build_source_path(file_path: Path) -> str:
+    """
+    Build a normalized document source path.
+
+    Documents inside the project are stored as relative paths.
+
+    External documents (e.g. Streamlit uploads) are stored
+    using their absolute path.
+    """
+
+    try:
+        source_path = file_path.relative_to(PROJECT_ROOT)
+    except ValueError:
+        source_path = file_path.resolve()
+
+    return str(source_path).replace("\\", "/")
+
+
 def ingest_document(
     file_path: Path,
     embedder: QueryEmbedder,
@@ -49,6 +79,11 @@ def ingest_document(
     """
     Read, chunk, embed, and store a single document.
     """
+
+    if not isinstance(file_path, Path):
+        raise TypeError(
+            "file_path must be a pathlib.Path."
+        )
 
     document_text = read_document(file_path)
 
@@ -67,17 +102,18 @@ def ingest_document(
         print(f"No chunks generated for: {file_path.name}")
         return 0, 0
 
-    relative_source_path = file_path.relative_to(PROJECT_ROOT)
+    source_path = build_source_path(file_path)
 
     document_id = insert_document(
         filename=file_path.name,
         file_type=file_path.suffix.lower().lstrip("."),
-        source_path=str(relative_source_path),
+        source_path=source_path,
     )
 
     embedding_count = 0
 
     for chunk_index, content in enumerate(chunks):
+
         chunk_id = insert_chunk(
             document_id=document_id,
             chunk_index=chunk_index,
@@ -85,6 +121,12 @@ def ingest_document(
         )
 
         embedding_vector = embedder.generate_embedding(content)
+
+        if not embedding_vector:
+            raise RuntimeError(
+                f"Embedding generation failed for "
+                f"chunk {chunk_index}."
+            )
 
         insert_embedding(
             chunk_id=chunk_id,
@@ -95,10 +137,10 @@ def ingest_document(
         embedding_count += 1
 
         print(
-            f"  Chunk {chunk_index} stored | "
+            f"  Chunk {chunk_index:03d} | "
             f"Chunk ID: {chunk_id} | "
             f"Characters: {len(content)} | "
-            f"Dimensions: {len(embedding_vector)}"
+            f"Embedding Dimension: {len(embedding_vector)}"
         )
 
     return len(chunks), embedding_count
@@ -115,10 +157,14 @@ def main() -> None:
         print("No supported documents found.")
         return
 
-    print(f"Documents found: {len(documents)}")
-    print(f"Embedding model: {MODEL_ALIAS}")
-    print(f"Chunk size: {DEFAULT_CHUNK_SIZE}")
-    print(f"Overlap: {DEFAULT_OVERLAP}")
+    print("=" * 80)
+    print("DOCUMENT INGESTION")
+    print("=" * 80)
+
+    print(f"Documents found : {len(documents)}")
+    print(f"Embedding model : {MODEL_ALIAS}")
+    print(f"Chunk size      : {DEFAULT_CHUNK_SIZE}")
+    print(f"Overlap         : {DEFAULT_OVERLAP}")
 
     embedder = QueryEmbedder()
 
@@ -126,7 +172,9 @@ def main() -> None:
     total_embeddings = 0
 
     try:
+
         for file_path in documents:
+
             print(f"\nProcessing: {file_path.name}")
 
             chunk_count, embedding_count = ingest_document(
@@ -142,13 +190,16 @@ def main() -> None:
                 f"Chunks: {chunk_count} | "
                 f"Embeddings: {embedding_count}"
             )
+
     finally:
         embedder.unload()
 
-    print("\nIngestion completed successfully.")
-    print(f"Documents processed: {len(documents)}")
-    print(f"Chunks stored: {total_chunks}")
-    print(f"Embeddings stored: {total_embeddings}")
+    print("\n" + "=" * 80)
+    print("INGESTION COMPLETED")
+    print("=" * 80)
+    print(f"Documents processed : {len(documents)}")
+    print(f"Chunks stored       : {total_chunks}")
+    print(f"Embeddings stored   : {total_embeddings}")
 
 
 if __name__ == "__main__":
