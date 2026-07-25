@@ -920,3 +920,367 @@ textarea {
     flex-direction: column;
   }
 }
+
+.upload-card:disabled {
+  cursor: wait;
+  opacity: 0.78;
+}
+
+.upload-spinner {
+  animation: upload-spin 1s linear infinite;
+}
+
+@keyframes upload-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.upload-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 11px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.38);
+}
+
+.upload-feedback svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.upload-feedback div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.upload-feedback strong {
+  font-size: 0.78rem;
+}
+
+.upload-feedback span {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.upload-feedback-success {
+  border-color: rgba(52, 211, 153, 0.24);
+}
+
+.upload-feedback-success svg {
+  color: #34d399;
+}
+
+.upload-feedback-skipped {
+  border-color: rgba(250, 204, 21, 0.24);
+}
+
+.upload-feedback-skipped svg {
+  color: #facc15;
+}
+
+.upload-feedback-error,
+.upload-feedback-failed {
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
+.upload-feedback-error svg,
+.upload-feedback-failed svg {
+  color: #f87171;
+}
+
+.uploaded-document {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.3);
+}
+
+.uploaded-document-icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.uploaded-document-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.uploaded-document-details strong {
+  overflow: hidden;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uploaded-document-details span {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.68rem;
+}
+
+.clear-button:disabled,
+.send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.messages-active {
+  justify-content: flex-start;
+  gap: 18px;
+  overflow-y: auto;
+  padding: 26px;
+}
+
+.chat-message {
+  width: min(780px, 92%);
+}
+
+.chat-message-user {
+  align-self: flex-end;
+}
+
+.chat-message-assistant {
+  align-self: flex-start;
+}
+
+.message-role {
+  margin-bottom: 7px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.chat-message-user .message-role {
+  text-align: right;
+}
+
+.message-content {
+  padding: 15px 17px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.58);
+  line-height: 1.65;
+}
+
+.chat-message-user .message-content {
+  border-color: rgba(217, 70, 239, 0.24);
+  background: rgba(126, 34, 206, 0.15);
+}
+
+.message-content p {
+  margin: 0 0 10px;
+}
+
+.message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.message-content ul,
+.message-content ol {
+  margin: 10px 0;
+  padding-left: 22px;
+}
+
+.message-content code {
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: rgba(148, 163, 184, 0.12);
+  font-size: 0.88em;
+}
+
+.message-content pre {
+  overflow-x: auto;
+  padding: 13px;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.75);
+}
+
+.message-content pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.message-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 17px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.58);
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.82rem;
+}
+
+.message-spinner {
+  flex-shrink: 0;
+  animation: message-spin 1s linear infinite;
+}
+
+@keyframes message-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.message-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.sources-heading {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.source-card {
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 11px;
+  background: rgba(15, 23, 42, 0.36);
+}
+
+.source-card summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+}
+
+.source-card summary span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-card summary span:last-child {
+  flex-shrink: 0;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.source-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 12px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.7rem;
+}
+
+.source-details p {
+  margin: 4px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.chat-error {
+  display: flex;
+  width: min(780px, 92%);
+  align-self: flex-start;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(248, 113, 113, 0.26);
+  border-radius: 12px;
+  background: rgba(127, 29, 29, 0.14);
+}
+
+.chat-error strong {
+  color: #fca5a5;
+  font-size: 0.78rem;
+}
+
+.chat-error span {
+  color: #fecaca;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  overflow-y: auto;
+}
+
+.app {
+  min-height: 100vh;
+  height: auto;
+}
+
+.content {
+  min-height: calc(100vh - 86px);
+  height: auto;
+}
+
+.chat {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.messages {
+   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.messages-active {
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.messages-active::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messages-active::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.messages-active::-webkit-scrollbar-track {
+  background: transparent;
+}

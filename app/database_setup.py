@@ -13,7 +13,12 @@ CREATE TABLE IF NOT EXISTS documents (
     filename TEXT NOT NULL,
     file_type TEXT NOT NULL,
     source_path TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    is_active INTEGER NOT NULL DEFAULT 1,
+    archived_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT ck_documents_is_active
+        CHECK (is_active IN (0, 1))
 );
 
 CREATE TABLE IF NOT EXISTS chunks (
@@ -113,6 +118,58 @@ def verify_foreign_keys(
         )
 
 
+def migrate_documents_table(
+    connection: sqlite3.Connection,
+) -> None:
+    """
+    Add document lifecycle columns to an existing database.
+
+    Existing documents remain active after the migration.
+    """
+
+    rows = connection.execute(
+        "PRAGMA table_info(documents);"
+    ).fetchall()
+
+    column_names = {
+        row[1]
+        for row in rows
+    }
+
+    if "is_active" not in column_names:
+        connection.execute(
+            """
+            ALTER TABLE documents
+            ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1
+            """
+        )
+
+        print(
+            "Migration applied: "
+            "documents.is_active added."
+        )
+
+    if "archived_at" not in column_names:
+        connection.execute(
+            """
+            ALTER TABLE documents
+            ADD COLUMN archived_at TEXT
+            """
+        )
+
+        print(
+            "Migration applied: "
+            "documents.archived_at added."
+        )
+
+    connection.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_documents_is_active
+        ON documents(is_active)
+        """
+    )
+
+
 def verify_database_integrity(
     connection: sqlite3.Connection,
 ) -> None:
@@ -178,7 +235,7 @@ def get_index_names(
 
 
 def create_database() -> None:
-    """Create and verify the Local RAG SQLite database."""
+    """Create, migrate, and verify the Local RAG SQLite database."""
 
     DATA_DIRECTORY.mkdir(
         parents=True,
@@ -190,6 +247,9 @@ def create_database() -> None:
             verify_foreign_keys(connection)
 
             connection.executescript(SCHEMA)
+
+            migrate_documents_table(connection)
+
             connection.commit()
 
             verify_database_integrity(connection)
@@ -217,6 +277,11 @@ def create_database() -> None:
 
     for index_name in index_names:
         print(f"- {index_name}")
+
+    print("\nDocument lifecycle:")
+    print("- Active document value: 1")
+    print("- Archived document value: 0")
+    print("- Existing documents remain active")
 
     print("\nConfiguration:")
     print("- Foreign keys: enabled")

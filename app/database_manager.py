@@ -268,6 +268,8 @@ def get_documents() -> list[sqlite3.Row]:
                     documents.filename,
                     documents.file_type,
                     documents.source_path,
+                    documents.is_active,
+                    documents.archived_at,
                     documents.created_at,
                     COUNT(DISTINCT chunks.id) AS chunk_count,
                     COUNT(DISTINCT embeddings.id) AS embedding_count
@@ -309,6 +311,8 @@ def get_document(
                     documents.filename,
                     documents.file_type,
                     documents.source_path,
+                    documents.is_active,
+                    documents.archived_at,
                     documents.created_at,
                     COUNT(DISTINCT chunks.id) AS chunk_count,
                     COUNT(DISTINCT embeddings.id) AS embedding_count
@@ -347,6 +351,8 @@ def get_document_by_source_path(
                     documents.filename,
                     documents.file_type,
                     documents.source_path,
+                    documents.is_active,
+                    documents.archived_at,
                     documents.created_at,
                     COUNT(DISTINCT chunks.id) AS chunk_count,
                     COUNT(DISTINCT embeddings.id) AS embedding_count
@@ -373,6 +379,86 @@ def document_exists(source_path: str) -> bool:
     """Return whether a document with the source path already exists."""
 
     return get_document_by_source_path(source_path) is not None
+
+
+def get_active_documents() -> list[sqlite3.Row]:
+    """Return all active documents."""
+
+    return [
+        document
+        for document in get_documents()
+        if document["is_active"] == 1
+    ]
+
+
+def get_archived_documents() -> list[sqlite3.Row]:
+    """Return all archived documents."""
+
+    return [
+        document
+        for document in get_documents()
+        if document["is_active"] == 0
+    ]
+
+
+def activate_document(document_id: int) -> bool:
+    """Move a document into the active knowledge base."""
+
+    if not isinstance(document_id, int):
+        raise TypeError("document_id must be an integer.")
+
+    if document_id <= 0:
+        raise ValueError("document_id must be greater than zero.")
+
+    try:
+        with connect_database() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE documents
+                SET
+                    is_active = 1,
+                    archived_at = NULL
+                WHERE id = ?
+                """,
+                (document_id,),
+            )
+
+            return cursor.rowcount > 0
+
+    except sqlite3.Error as error:
+        raise RuntimeError(
+            f"Document activation failed: {error}"
+        ) from error
+
+
+def archive_document(document_id: int) -> bool:
+    """Move a document into the archive."""
+
+    if not isinstance(document_id, int):
+        raise TypeError("document_id must be an integer.")
+
+    if document_id <= 0:
+        raise ValueError("document_id must be greater than zero.")
+
+    try:
+        with connect_database() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE documents
+                SET
+                    is_active = 0,
+                    archived_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (document_id,),
+            )
+
+            return cursor.rowcount > 0
+
+    except sqlite3.Error as error:
+        raise RuntimeError(
+            f"Document archiving failed: {error}"
+        ) from error
 
 
 def delete_document(document_id: int) -> bool:
@@ -560,6 +646,7 @@ def get_chunks_with_embeddings(
         INNER JOIN embeddings
             ON embeddings.chunk_id = chunks.id
         WHERE embeddings.model_name = ?
+          AND documents.is_active = 1
     """
 
     parameters: list[object] = [cleaned_model_name]
@@ -602,6 +689,22 @@ def get_database_statistics() -> dict[str, int]:
                 "SELECT COUNT(*) FROM documents"
             ).fetchone()[0]
 
+            active_document_count = connection.execute(
+                """
+                SELECT COUNT(*)
+                FROM documents
+                WHERE is_active = 1
+                """
+            ).fetchone()[0]
+
+            archived_document_count = connection.execute(
+                """
+                SELECT COUNT(*)
+                FROM documents
+                WHERE is_active = 0
+                """
+            ).fetchone()[0]
+
             chunk_count = connection.execute(
                 "SELECT COUNT(*) FROM chunks"
             ).fetchone()[0]
@@ -617,6 +720,8 @@ def get_database_statistics() -> dict[str, int]:
 
     return {
         "documents": int(document_count),
+        "active_documents": int(active_document_count),
+        "archived_documents": int(archived_document_count),
         "chunks": int(chunk_count),
         "embeddings": int(embedding_count),
     }
@@ -634,6 +739,8 @@ def main() -> None:
 
     print("\nStatistics:")
     print(f"- Documents: {statistics['documents']}")
+    print(f"- Active documents: {statistics['active_documents']}")
+    print(f"- Archived documents: {statistics['archived_documents']}")
     print(f"- Chunks: {statistics['chunks']}")
     print(f"- Embeddings: {statistics['embeddings']}")
 
@@ -650,6 +757,7 @@ def main() -> None:
             f"- ID: {document['id']} | "
             f"Filename: {document['filename']} | "
             f"Type: {document['file_type']} | "
+            f"Status: {'active' if document['is_active'] == 1 else 'archived'} | "
             f"Chunks: {document['chunk_count']} | "
             f"Embeddings: {document['embedding_count']} | "
             f"Source: {document['source_path']}"
