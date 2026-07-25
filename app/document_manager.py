@@ -3,8 +3,12 @@ from typing import TypedDict
 
 from app.chunking import SUPPORTED_EXTENSIONS
 from app.database_manager import (
+    activate_document as db_activate_document,
+    archive_document as db_archive_document,
     delete_all_documents,
     delete_document,
+    get_active_documents,
+    get_archived_documents,
     get_document,
     get_document_by_source_path,
     get_documents,
@@ -33,7 +37,7 @@ class DocumentIngestionResult(TypedDict):
 
 
 class DocumentManager:
-    """Manage document ingestion, metadata, and deletion."""
+    """Manage document ingestion, metadata, lifecycle, and deletion."""
 
     def __init__(
         self,
@@ -116,7 +120,7 @@ class DocumentManager:
 
     @staticmethod
     def _build_source_path(file_path: Path) -> str:
-        """Build the source path used in document metadata."""
+        """Build the normalized source path used in metadata."""
 
         try:
             source_path = file_path.relative_to(PROJECT_ROOT)
@@ -165,7 +169,6 @@ class DocumentManager:
 
         results: list[DocumentIngestionResult] = []
         paths_to_ingest: list[tuple[Path, str]] = []
-
         seen_source_paths: set[str] = set()
 
         for file_path in validated_paths:
@@ -195,6 +198,12 @@ class DocumentManager:
             )
 
             if existing_document is not None:
+                existing_status = (
+                    "active"
+                    if existing_document["is_active"] == 1
+                    else "archived"
+                )
+
                 results.append(
                     {
                         "filename": file_path.name,
@@ -204,7 +213,8 @@ class DocumentManager:
                         "chunk_count": 0,
                         "embedding_count": 0,
                         "message": (
-                            "Document already exists in the database."
+                            "Document already exists in the database "
+                            f"and is currently {existing_status}."
                         ),
                     }
                 )
@@ -301,6 +311,18 @@ class DocumentManager:
         return get_documents()
 
     @staticmethod
+    def list_active_documents():
+        """Return metadata for all active documents."""
+
+        return get_active_documents()
+
+    @staticmethod
+    def list_archived_documents():
+        """Return metadata for all archived documents."""
+
+        return get_archived_documents()
+
+    @staticmethod
     def get_document(document_id: int):
         """Return metadata for one stored document."""
 
@@ -312,6 +334,28 @@ class DocumentManager:
             )
 
         return document
+
+    @staticmethod
+    def archive_document(document_id: int) -> bool:
+        """Move an active document into the archive."""
+
+        document = get_document(document_id)
+
+        if document is None:
+            return False
+
+        return db_archive_document(document_id)
+
+    @staticmethod
+    def activate_document(document_id: int) -> bool:
+        """Move an archived document back into the active collection."""
+
+        document = get_document(document_id)
+
+        if document is None:
+            return False
+
+        return db_activate_document(document_id)
 
     @staticmethod
     def remove_document(document_id: int) -> bool:
@@ -357,21 +401,35 @@ def main() -> None:
     print("=" * 80)
 
     documents = manager.list_documents()
+    active_documents = manager.list_active_documents()
+    archived_documents = manager.list_archived_documents()
 
-    print(f"Stored documents: {len(documents)}")
+    print(f"Stored documents   : {len(documents)}")
+    print(f"Active documents   : {len(active_documents)}")
+    print(f"Archived documents : {len(archived_documents)}")
 
     if not documents:
         print("No documents are currently stored.")
         return
 
+    print("\nDocuments:")
+
     for document in documents:
+        status = (
+            "active"
+            if document["is_active"] == 1
+            else "archived"
+        )
+
         print(
             f"- ID: {document['id']} | "
             f"Filename: {document['filename']} | "
+            f"Status: {status} | "
             f"Type: {document['file_type']} | "
             f"Chunks: {document['chunk_count']} | "
             f"Embeddings: {document['embedding_count']} | "
-            f"Created: {document['created_at']}"
+            f"Created: {document['created_at']} | "
+            f"Archived: {document['archived_at']}"
         )
 
 

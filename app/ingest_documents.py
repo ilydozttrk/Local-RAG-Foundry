@@ -19,9 +19,9 @@ from app.query_embedding import (
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIRECTORY = PROJECT_ROOT / "data"
 
-DEFAULT_CHUNK_SIZE = 500
-DEFAULT_OVERLAP = 50
-DEFAULT_MINIMUM_CHUNK_SIZE = 50
+DEFAULT_CHUNK_SIZE = 900
+DEFAULT_OVERLAP = 100
+DEFAULT_MINIMUM_CHUNK_SIZE = 100
 
 
 def find_documents(data_directory: Path) -> list[Path]:
