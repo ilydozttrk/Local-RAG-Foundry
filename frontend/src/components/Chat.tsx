@@ -7,6 +7,8 @@ import {
 import {
   type FormEvent,
   type KeyboardEvent,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 import axios from "axios";
@@ -17,6 +19,10 @@ import {
   type SourceResponse,
 } from "../services/api";
 
+interface ChatProps {
+  selectedDocumentIds: number[];
+}
+
 interface ChatMessage {
   id: number;
   role: "user" | "assistant";
@@ -24,11 +30,33 @@ interface ChatMessage {
   sources?: SourceResponse[];
 }
 
-function Chat() {
+function Chat({
+  selectedDocumentIds,
+}: ChatProps) {
   const [question, setQuestion] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    null,
+  );
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageIdRef = useRef(0);
+
+  const createMessageId = () => {
+    messageIdRef.current += 1;
+
+    return messageIdRef.current;
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages, loading, error]);
 
   const sendQuestion = async (
     submittedQuestion: string,
@@ -39,8 +67,16 @@ function Chat() {
       return;
     }
 
+    if (selectedDocumentIds.length === 0) {
+      setError(
+        "Please select at least one document before asking a question.",
+      );
+
+      return;
+    }
+
     const userMessage: ChatMessage = {
-      id: Date.now(),
+      id: createMessageId(),
       role: "user",
       content: cleanedQuestion,
     };
@@ -55,10 +91,13 @@ function Chat() {
     setLoading(true);
 
     try {
-      const response = await askQuestion(cleanedQuestion);
+      const response = await askQuestion(
+        cleanedQuestion,
+        selectedDocumentIds,
+      );
 
       const assistantMessage: ChatMessage = {
-        id: Date.now() + 1,
+        id: createMessageId(),
         role: "assistant",
         content: response.answer,
         sources: response.sources,
@@ -70,7 +109,8 @@ function Chat() {
       ]);
     } catch (requestError: unknown) {
       if (axios.isAxiosError(requestError)) {
-        const detail = requestError.response?.data?.detail;
+        const detail =
+          requestError.response?.data?.detail;
 
         if (typeof detail === "string") {
           setError(detail);
@@ -101,12 +141,22 @@ function Chat() {
     event: KeyboardEvent<HTMLTextAreaElement>,
   ) => {
     if (
-      event.key === "Enter"
-      && !event.shiftKey
+      event.key === "Enter" &&
+      !event.shiftKey
     ) {
       event.preventDefault();
 
       void sendQuestion(question);
+    }
+  };
+
+  const handleQuestionChange = (
+    value: string,
+  ) => {
+    setQuestion(value);
+
+    if (error) {
+      setError(null);
     }
   };
 
@@ -120,9 +170,12 @@ function Chat() {
     suggestedQuestion: string,
   ) => {
     setQuestion(suggestedQuestion);
+    setError(null);
   };
 
   const hasMessages = messages.length > 0;
+  const hasSelectedDocuments =
+    selectedDocumentIds.length > 0;
 
   return (
     <main className="chat">
@@ -149,12 +202,16 @@ function Chat() {
         className={`messages ${
           hasMessages ? "messages-active" : ""
         }`}
+        aria-live="polite"
       >
         {!hasMessages && (
           <>
             <div className="welcome-card">
               <div className="welcome-icon">
-                <Sparkles size={28} />
+                <Sparkles
+                  size={28}
+                  aria-hidden="true"
+                />
               </div>
 
               <div className="welcome-copy">
@@ -167,10 +224,10 @@ function Chat() {
                 </h3>
 
                 <p>
-                  Upload one or more documents, then ask a
-                  question. Answers will be generated locally
-                  using retrieved context from your knowledge
-                  base.
+                  Upload one or more documents, select the
+                  files you want to use, then ask a question.
+                  Answers will be generated locally using
+                  retrieved context from your knowledge base.
                 </p>
               </div>
             </div>
@@ -181,15 +238,20 @@ function Chat() {
                 type="button"
                 onClick={() =>
                   handleSuggestion(
-                    "Summarize the main ideas in the uploaded document.",
+                    "Summarize the main ideas in the selected documents.",
                   )
                 }
               >
-                <FileSearch size={18} />
+                <FileSearch
+                  size={18}
+                  aria-hidden="true"
+                />
 
                 <span>
-                  <strong>Summarize a document</strong>
-                  Get a concise overview of the uploaded
+                  <strong>
+                    Summarize selected documents
+                  </strong>
+                  Get a concise overview of the selected
                   content.
                 </span>
               </button>
@@ -199,16 +261,21 @@ function Chat() {
                 type="button"
                 onClick={() =>
                   handleSuggestion(
-                    "What are the most important findings in the uploaded document?",
+                    "What are the most important findings in the selected documents?",
                   )
                 }
               >
-                <Sparkles size={18} />
+                <Sparkles
+                  size={18}
+                  aria-hidden="true"
+                />
 
                 <span>
-                  <strong>Ask a focused question</strong>
-                  Retrieve relevant passages before generating
-                  an answer.
+                  <strong>
+                    Ask a focused question
+                  </strong>
+                  Retrieve relevant passages before
+                  generating an answer.
                 </span>
               </button>
             </div>
@@ -218,7 +285,10 @@ function Chat() {
         {messages.map((message) => (
           <article
             key={message.id}
-            className={`chat-message chat-message-${message.role}`}
+            className={
+              `chat-message ` +
+              `chat-message-${message.role}`
+            }
           >
             <div className="message-role">
               {message.role === "user"
@@ -236,9 +306,9 @@ function Chat() {
               )}
             </div>
 
-            {message.role === "assistant"
-              && message.sources
-              && message.sources.length > 0 && (
+            {message.role === "assistant" &&
+              message.sources &&
+              message.sources.length > 0 && (
                 <div className="message-sources">
                   <span className="sources-heading">
                     Retrieved sources
@@ -247,29 +317,37 @@ function Chat() {
                   {message.sources.map(
                     (source, sourceIndex) => (
                       <details
-                        key={`${source.chunk_id}-${sourceIndex}`}
+                        key={
+                          `${source.chunk_id}-` +
+                          `${sourceIndex}`
+                        }
                         className="source-card"
                       >
                         <summary>
                           <span>
-                            {source.filename
-                              ?? `Document ${source.document_id}`}
+                            {source.filename ??
+                              `Document ${source.document_id}`}
                           </span>
 
                           <span>
                             {(
-                              source.similarity_score * 100
+                              source.similarity_score *
+                              100
                             ).toFixed(1)}
                             %
                           </span>
                         </summary>
 
                         <div className="source-details">
-                          {source.chunk_index !== null && (
-                            <span>
-                              Chunk {source.chunk_index}
-                            </span>
-                          )}
+                          {source.chunk_index !==
+                            null &&
+                            source.chunk_index !==
+                              undefined && (
+                              <span>
+                                Chunk{" "}
+                                {source.chunk_index}
+                              </span>
+                            )}
 
                           {source.source_path && (
                             <span>
@@ -295,25 +373,38 @@ function Chat() {
               Local RAG
             </div>
 
-            <div className="message-loading">
+            <div
+              className="message-loading"
+              role="status"
+            >
               <LoaderCircle
                 className="message-spinner"
                 size={18}
+                aria-hidden="true"
               />
 
               <span>
-                Retrieving context and generating an answer...
+                Retrieving context and generating an
+                answer...
               </span>
             </div>
           </article>
         )}
 
         {error && (
-          <div className="chat-error">
+          <div
+            className="chat-error"
+            role="alert"
+          >
             <strong>Request failed</strong>
             <span>{error}</span>
           </div>
         )}
+
+        <div
+          ref={messagesEndRef}
+          aria-hidden="true"
+        />
       </section>
 
       <form
@@ -325,10 +416,16 @@ function Chat() {
             rows={1}
             value={question}
             onChange={(event) =>
-              setQuestion(event.target.value)
+              handleQuestionChange(
+                event.target.value,
+              )
             }
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything about your documents..."
+            placeholder={
+              hasSelectedDocuments
+                ? "Ask anything about the selected documents..."
+                : "Select at least one document to begin..."
+            }
             aria-label="Message"
             disabled={loading}
           />
@@ -336,23 +433,36 @@ function Chat() {
           <button
             className="send-button"
             type="submit"
-            aria-label="Send"
-            disabled={!question.trim() || loading}
+            aria-label="Send message"
+            disabled={
+              !question.trim() ||
+              loading ||
+              !hasSelectedDocuments
+            }
           >
             {loading ? (
               <LoaderCircle
                 className="message-spinner"
                 size={19}
+                aria-hidden="true"
               />
             ) : (
-              <Send size={19} />
+              <Send
+                size={19}
+                aria-hidden="true"
+              />
             )}
           </button>
         </div>
 
         <p className="composer-note">
-          Answers are generated locally and may require
-          document verification.
+          {hasSelectedDocuments
+            ? `${selectedDocumentIds.length} ${
+                selectedDocumentIds.length === 1
+                  ? "document"
+                  : "documents"
+              } selected. Answers are generated locally.`
+            : "Select at least one document before asking a question."}
         </p>
       </form>
     </main>

@@ -37,6 +37,10 @@ class ChatRequest(BaseModel):
         max_length=4000,
     )
 
+    document_ids: list[int] = Field(
+        min_length=1,
+    )
+
 
 class SourceResponse(BaseModel):
     """Represent one retrieved source passage."""
@@ -65,7 +69,9 @@ def get_rag_pipeline() -> RAGPipeline:
     global rag_pipeline
 
     if rag_pipeline is None:
-        rag_pipeline = RAGPipeline(top_k=3)
+        rag_pipeline = RAGPipeline(
+            top_k=3, 
+            min_similarity_score=0.35,)
 
     return rag_pipeline
 
@@ -121,6 +127,26 @@ def health_check() -> dict[str, str]:
         "application": "Local RAG AI Assistant",
     }
 
+@app.get("/api/documents")
+def list_documents() -> list[dict]:
+    """Return all stored documents."""
+
+    manager = DocumentManager()
+
+    documents = manager.list_documents()
+
+    return [
+        {
+            "document_id": document["id"],
+            "filename": document["filename"],
+            "file_type": document["file_type"],
+            "chunk_count": document["chunk_count"],
+            "embedding_count": document["embedding_count"],
+            "is_active": bool(document["is_active"]),
+        }
+        for document in documents
+    ]
+
 
 @app.post("/api/upload")
 async def upload_document(
@@ -152,7 +178,10 @@ async def upload_document(
     except OSError as error:
         raise HTTPException(
             status_code=500,
-            detail=f"The uploaded file could not be saved: {error}",
+            detail=(
+                "The uploaded file could not be saved: "
+                f"{error}"
+            ),
         ) from error
 
     finally:
@@ -177,7 +206,7 @@ async def upload_document(
 def chat_with_documents(
     request: ChatRequest,
 ) -> ChatResponse:
-    """Answer a question using the local RAG pipeline."""
+    """Answer a question using selected local documents."""
 
     cleaned_question = request.question.strip()
 
@@ -188,15 +217,22 @@ def chat_with_documents(
         )
 
     try:
-        
-         #The local model is shared by the API. The lock prevents
-         #simultaneous requests from using the same pipeline instance.
-         
+        # The local model is shared by the API. The lock prevents
+        # simultaneous requests from using the same pipeline instance.
         with rag_pipeline_lock:
             pipeline = get_rag_pipeline()
-            result = pipeline.ask(cleaned_question)
+            result = pipeline.ask(
+                question=cleaned_question,
+                document_ids=request.document_ids,
+            )
 
     except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except TypeError as error:
         raise HTTPException(
             status_code=400,
             detail=str(error),

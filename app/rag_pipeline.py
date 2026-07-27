@@ -20,23 +20,68 @@ class RAGPipeline:
     def __init__(
         self,
         top_k: int = 3,
+        min_similarity_score: float = 0.35,
     ) -> None:
-        if not isinstance(top_k, int):
-            raise TypeError("top_k must be an integer.")
+        self.top_k = self._validate_top_k(top_k)
+        self.min_similarity_score = (
+            self._validate_min_similarity_score(
+                min_similarity_score
+            )
+        )
 
-        if top_k <= 0:
-            raise ValueError("top_k must be greater than zero.")
-
-        self.top_k = top_k
         self.prompt_builder = PromptBuilder()
         self.answer_generator = AnswerGenerator()
         self._closed = False
 
-    def ask(self, question: str) -> RAGResponse:
-        """Answer a question using retrieved document context."""
+    @staticmethod
+    def _validate_top_k(top_k: int) -> int:
+        """Validate and normalize the retrieval result limit."""
 
-        if self._closed:
-            raise RuntimeError("The RAG pipeline has already been closed.")
+        if not isinstance(top_k, int) or isinstance(
+            top_k,
+            bool,
+        ):
+            raise TypeError("top_k must be an integer.")
+
+        if top_k <= 0:
+            raise ValueError(
+                "top_k must be greater than zero."
+            )
+
+        return top_k
+
+    @staticmethod
+    def _validate_min_similarity_score(
+        min_similarity_score: float,
+    ) -> float:
+        """Validate and normalize the minimum similarity score."""
+
+        if (
+            not isinstance(
+                min_similarity_score,
+                (int, float),
+            )
+            or isinstance(min_similarity_score, bool)
+        ):
+            raise TypeError(
+                "min_similarity_score must be numeric."
+            )
+
+        normalized_score = float(
+            min_similarity_score
+        )
+
+        if not -1.0 <= normalized_score <= 1.0:
+            raise ValueError(
+                "min_similarity_score must be between "
+                "-1.0 and 1.0."
+            )
+
+        return normalized_score
+
+    @staticmethod
+    def _validate_question(question: str) -> str:
+        """Validate and normalize a user question."""
 
         if not isinstance(question, str):
             raise TypeError("Question must be a string.")
@@ -46,17 +91,149 @@ class RAGPipeline:
         if not cleaned_question:
             raise ValueError("Question cannot be empty.")
 
+        return cleaned_question
+
+    @staticmethod
+    def _validate_document_ids(
+        document_ids: list[int],
+    ) -> list[int]:
+        """Validate, deduplicate, and normalize document IDs."""
+
+        if not isinstance(document_ids, list):
+            raise TypeError(
+                "document_ids must be a list of integers."
+            )
+
+        if not document_ids:
+            raise ValueError(
+                "At least one document must be selected."
+            )
+
+        if any(
+            not isinstance(document_id, int)
+            or isinstance(document_id, bool)
+            or document_id <= 0
+            for document_id in document_ids
+        ):
+            raise ValueError(
+                "Every document ID must be a positive integer."
+            )
+
+        return list(dict.fromkeys(document_ids))
+
+    @staticmethod
+    def _looks_turkish(text: str) -> bool:
+        """
+        Estimate whether a question is written in Turkish.
+
+        This is intentionally lightweight and is used only for
+        local fallback messages when retrieval returns no result.
+        """
+
+        normalized_text = text.casefold()
+
+        turkish_characters = {
+            "ç",
+            "ğ",
+            "ı",
+            "ö",
+            "ş",
+            "ü",
+        }
+
+        if any(
+            character in normalized_text
+            for character in turkish_characters
+        ):
+            return True
+
+        turkish_keywords = {
+            "ne",
+            "nedir",
+            "nasıl",
+            "hangi",
+            "nerede",
+            "nereye",
+            "nereden",
+            "neden",
+            "niçin",
+            "kim",
+            "kaç",
+            "kullanılır",
+            "kullanilir",
+            "alanlarda",
+            "hakkında",
+            "hakkinda",
+            "açıkla",
+            "acikla",
+            "özetle",
+            "ozetle",
+            "belge",
+            "dosya",
+        }
+
+        words = {
+            word.strip(
+                ".,!?;:()[]{}\"'"
+            )
+            for word in normalized_text.split()
+        }
+
+        return bool(words & turkish_keywords)
+
+    @classmethod
+    def _build_no_results_answer(
+        cls,
+        question: str,
+    ) -> str:
+        """Build a language-aware answer for empty retrieval results."""
+
+        if cls._looks_turkish(question):
+            return (
+                "Seçili belgelerde bu soruyu güvenilir şekilde "
+                "yanıtlamak için yeterince ilgili bilgi bulamadım."
+            )
+
+        return (
+            "I could not find sufficiently relevant information "
+            "in the selected documents to answer this question "
+            "reliably."
+        )
+
+    def ask(
+        self,
+        question: str,
+        document_ids: list[int],
+    ) -> RAGResponse:
+        """Answer a question using the selected document context."""
+
+        if self._closed:
+            raise RuntimeError(
+                "The RAG pipeline has already been closed."
+            )
+
+        cleaned_question = self._validate_question(
+            question
+        )
+
+        unique_document_ids = (
+            self._validate_document_ids(
+                document_ids
+            )
+        )
+
         results = retrieve_top_k(
             query=cleaned_question,
             top_k=self.top_k,
+            document_ids=unique_document_ids,
+            min_similarity_score=self.min_similarity_score,
         )
 
         if not results:
             return {
                 "question": cleaned_question,
-                "answer": (
-                    "No relevant information was found in the "
-                    "available documents."
+                "answer": self._build_no_results_answer(
+                    cleaned_question
                 ),
                 "sources": [],
             }
@@ -68,7 +245,12 @@ class RAGPipeline:
             context=context,
         )
 
-        answer = self.answer_generator.generate_answer(prompt)
+        answer = self.answer_generator.generate_answer(
+            prompt=prompt,
+            system_instruction=(
+                self.prompt_builder.system_instruction
+            ),
+        )
 
         return {
             "question": cleaned_question,
@@ -88,17 +270,32 @@ class RAGPipeline:
     def __enter__(self) -> "RAGPipeline":
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(
+        self,
+        exc_type,
+        exc_value,
+        traceback,
+    ) -> None:
         self.close()
 
 
 def main() -> None:
     """Run a standalone RAG pipeline smoke test."""
 
-    question = "What is SQLite?"
+    question = "Python hangi alanlarda kullanılır?"
 
-    with RAGPipeline(top_k=3) as pipeline:
-        response = pipeline.ask(question)
+    # Replace this value with an active document ID
+    # available in the local database.
+    document_ids = [1]
+
+    with RAGPipeline(
+        top_k=3,
+        min_similarity_score=0.50,
+    ) as pipeline:
+        response = pipeline.ask(
+            question=question,
+            document_ids=document_ids,
+        )
 
     print("\n" + "=" * 80)
     print("QUESTION")
@@ -118,11 +315,15 @@ def main() -> None:
         print("No sources were retrieved.")
         return
 
-    for index, source in enumerate(response["sources"], start=1):
+    for index, source in enumerate(
+        response["sources"],
+        start=1,
+    ):
         print(
             f"{index}. "
             f"Document ID: {source['document_id']} | "
             f"Chunk ID: {source['chunk_id']} | "
+            f"Filename: {source['filename']} | "
             f"Score: {source['similarity_score']:.4f}"
         )
 

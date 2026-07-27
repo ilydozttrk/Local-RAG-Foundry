@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import {
   type ChangeEvent,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -20,7 +21,45 @@ import {
   uploadDocument,
 } from "../services/api";
 
-function Sidebar() {
+interface DocumentItem {
+  document_id: number;
+  filename: string;
+  file_type: string;
+  chunk_count: number;
+  embedding_count: number;
+  is_active: boolean;
+}
+
+interface SidebarProps {
+  documents: DocumentItem[];
+  selectedDocumentIds: number[];
+  documentsLoading: boolean;
+  documentsError: string | null;
+  onSelectionChange: (
+    documentIds: number[],
+  ) => void;
+  onDocumentsChanged: (
+    newlyUploadedDocumentId?: number,
+  ) => Promise<void>;
+}
+
+function formatFileType(fileType: string): string {
+  const normalizedFileType = fileType
+    .replace(".", "")
+    .trim()
+    .toUpperCase();
+
+  return normalizedFileType || "FILE";
+}
+
+function Sidebar({
+  documents,
+  selectedDocumentIds,
+  documentsLoading,
+  documentsError,
+  onSelectionChange,
+  onDocumentsChanged,
+}: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [uploading, setUploading] = useState(false);
@@ -28,6 +67,19 @@ function Sidebar() {
     useState<UploadResponse | null>(null);
   const [uploadError, setUploadError] =
     useState<string | null>(null);
+
+  const activeDocuments = useMemo(
+    () =>
+      documents.filter(
+        (document) => document.is_active,
+      ),
+    [documents],
+  );
+
+  const selectedDocumentIdSet = useMemo(
+    () => new Set(selectedDocumentIds),
+    [selectedDocumentIds],
+  );
 
   const handleUploadClick = () => {
     if (uploading) {
@@ -54,6 +106,15 @@ function Sidebar() {
       const result = await uploadDocument(selectedFile);
 
       setUploadResult(result);
+
+      /*
+       * Refresh the document list after the upload request.
+       * App.tsx automatically selects a successfully indexed
+       * document using the returned document ID.
+       */
+      await onDocumentsChanged(
+        result.document_id ?? undefined,
+      );
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
         const detail = error.response?.data?.detail;
@@ -80,20 +141,69 @@ function Sidebar() {
     }
   };
 
-  const documentCount =
-    uploadResult?.status === "success" ? 1 : 0;
+  const handleDocumentSelection = (
+    documentId: number,
+  ) => {
+    const isSelected =
+      selectedDocumentIdSet.has(documentId);
+
+    if (isSelected) {
+      onSelectionChange(
+        selectedDocumentIds.filter(
+          (selectedId) =>
+            selectedId !== documentId,
+        ),
+      );
+
+      return;
+    }
+
+    onSelectionChange([
+      ...selectedDocumentIds,
+      documentId,
+    ]);
+  };
+
+  const handleSelectAll = () => {
+    onSelectionChange(
+      activeDocuments.map(
+        (document) => document.document_id,
+      ),
+    );
+  };
+
+  const handleClearSelection = () => {
+    onSelectionChange([]);
+  };
+
+  const allActiveDocumentsSelected =
+    activeDocuments.length > 0 &&
+    activeDocuments.every((document) =>
+      selectedDocumentIdSet.has(
+        document.document_id,
+      ),
+    );
 
   return (
-    <aside className="sidebar">
+    <aside
+      className="sidebar"
+      aria-label="Knowledge base sidebar"
+    >
       <section className="sidebar-section">
         <div className="section-heading">
           <div>
-            <span className="section-label">Workspace</span>
+            <span className="section-label">
+              Workspace
+            </span>
+
             <h2>Knowledge Base</h2>
           </div>
 
-          <span className="document-count">
-            {documentCount}
+          <span
+            className="document-count"
+            title={`${activeDocuments.length} active documents`}
+          >
+            {activeDocuments.length}
           </span>
         </div>
 
@@ -103,6 +213,7 @@ function Sidebar() {
           accept=".pdf,.txt,application/pdf,text/plain"
           onChange={handleFileChange}
           disabled={uploading}
+          aria-label="Choose a PDF or TXT document"
           style={{ display: "none" }}
         />
 
@@ -111,21 +222,26 @@ function Sidebar() {
           type="button"
           onClick={handleUploadClick}
           disabled={uploading}
+          aria-busy={uploading}
         >
           <span className="upload-icon-wrapper">
             {uploading ? (
               <LoaderCircle
                 className="upload-spinner"
                 size={24}
+                aria-hidden="true"
               />
             ) : (
-              <UploadCloud size={24} />
+              <UploadCloud
+                size={24}
+                aria-hidden="true"
+              />
             )}
           </span>
 
           <strong>
             {uploading
-              ? "Processing document..."
+              ? "Indexing document..."
               : "Upload documents"}
           </strong>
 
@@ -138,19 +254,36 @@ function Sidebar() {
 
         {uploadResult && (
           <div
-            className={`upload-feedback upload-feedback-${uploadResult.status}`}
+            className={
+              `upload-feedback ` +
+              `upload-feedback-${uploadResult.status}`
+            }
+            role="status"
           >
             {uploadResult.status === "success" ? (
-              <CheckCircle2 size={17} />
+              <CheckCircle2
+                size={17}
+                aria-hidden="true"
+              />
+            ) : uploadResult.status === "failed" ? (
+              <XCircle
+                size={17}
+                aria-hidden="true"
+              />
             ) : (
-              <FileText size={17} />
+              <FileText
+                size={17}
+                aria-hidden="true"
+              />
             )}
 
             <div>
               <strong>
                 {uploadResult.status === "success"
-                  ? "Upload completed"
-                  : "Document skipped"}
+                  ? "Document indexed"
+                  : uploadResult.status === "failed"
+                    ? "Indexing failed"
+                    : "Document skipped"}
               </strong>
 
               <span>{uploadResult.message}</span>
@@ -159,8 +292,14 @@ function Sidebar() {
         )}
 
         {uploadError && (
-          <div className="upload-feedback upload-feedback-error">
-            <XCircle size={17} />
+          <div
+            className="upload-feedback upload-feedback-error"
+            role="alert"
+          >
+            <XCircle
+              size={17}
+              aria-hidden="true"
+            />
 
             <div>
               <strong>Upload failed</strong>
@@ -172,38 +311,143 @@ function Sidebar() {
 
       <section className="sidebar-section documents-section">
         <div className="list-heading">
-          <FileText size={15} />
-          <span>Documents</span>
+          <div className="service-name">
+            <FileText
+              size={15}
+              aria-hidden="true"
+            />
+            <span>Documents</span>
+          </div>
+
+          {activeDocuments.length > 0 && (
+            <button
+              className="clear-button"
+              type="button"
+              onClick={
+                allActiveDocumentsSelected
+                  ? handleClearSelection
+                  : handleSelectAll
+              }
+            >
+              {allActiveDocumentsSelected
+                ? "Clear"
+                : "Select all"}
+            </button>
+          )}
         </div>
 
-        {uploadResult?.status === "success" ? (
-          <div className="uploaded-document">
-            <div className="uploaded-document-icon">
-              <FileText size={18} />
+        {documentsLoading ? (
+          <div
+            className="empty-documents"
+            role="status"
+          >
+            <div className="empty-document-icon">
+              <LoaderCircle
+                className="upload-spinner"
+                size={20}
+                aria-hidden="true"
+              />
             </div>
 
-            <div className="uploaded-document-details">
-              <strong title={uploadResult.filename}>
-                {uploadResult.filename}
-              </strong>
+            <p>Loading documents</p>
 
-              <span>
-                {uploadResult.chunk_count} chunks ·{" "}
-                {uploadResult.embedding_count} embeddings
-              </span>
+            <span>
+              Reading the local knowledge base.
+            </span>
+          </div>
+        ) : documentsError ? (
+          <div
+            className="upload-feedback upload-feedback-error"
+            role="alert"
+          >
+            <XCircle
+              size={17}
+              aria-hidden="true"
+            />
+
+            <div>
+              <strong>Documents unavailable</strong>
+              <span>{documentsError}</span>
             </div>
+          </div>
+        ) : activeDocuments.length > 0 ? (
+          <div className="documents-list">
+            {activeDocuments.map((document) => {
+              const isSelected =
+                selectedDocumentIdSet.has(
+                  document.document_id,
+                );
+
+              const formattedFileType =
+                formatFileType(document.file_type);
+
+              return (
+                <label
+                  className="uploaded-document"
+                  key={document.document_id}
+                  title={
+                    isSelected
+                      ? `Deselect ${document.filename}`
+                      : `Select ${document.filename}`
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() =>
+                      handleDocumentSelection(
+                        document.document_id,
+                      )
+                    }
+                    aria-label={`Select ${document.filename}`}
+                  />
+
+                  <div className="uploaded-document-icon">
+                    <FileText
+                      size={18}
+                      aria-hidden="true"
+                    />
+                  </div>
+
+                  <div className="uploaded-document-details">
+                    <strong title={document.filename}>
+                      {document.filename}
+                    </strong>
+
+                    <span>
+                      {formattedFileType} •{" "}
+                      {document.chunk_count}{" "}
+                      {document.chunk_count === 1
+                        ? "chunk"
+                        : "chunks"}
+                    </span>
+                  </div>
+
+                  {isSelected && (
+                    <CheckCircle2
+                      className="selected-document-icon"
+                      size={17}
+                      aria-hidden="true"
+                    />
+                  )}
+                </label>
+              );
+            })}
           </div>
         ) : (
           <div className="empty-documents">
             <div className="empty-document-icon">
-              <HardDrive size={20} />
+              <HardDrive
+                size={20}
+                aria-hidden="true"
+              />
             </div>
 
             <p>No documents yet</p>
 
             <span>
-              Upload a file to begin building your local
-              knowledge base.
+              Upload a file to begin building your
+              local knowledge base.
             </span>
           </div>
         )}
@@ -212,25 +456,39 @@ function Sidebar() {
       <section className="system-card">
         <div className="system-card-heading">
           <span>Local services</span>
-          <span className="online-label">Online</span>
+          <span className="online-label">
+            Online
+          </span>
         </div>
 
         <div className="service-row">
           <div className="service-name">
-            <Bot size={16} />
+            <Bot
+              size={16}
+              aria-hidden="true"
+            />
             <span>Foundry Local</span>
           </div>
 
-          <span className="service-status-dot" />
+          <span
+            className="service-status-dot"
+            aria-label="Foundry Local is online"
+          />
         </div>
 
         <div className="service-row">
           <div className="service-name">
-            <Database size={16} />
+            <Database
+              size={16}
+              aria-hidden="true"
+            />
             <span>Vector Database</span>
           </div>
 
-          <span className="service-status-dot" />
+          <span
+            className="service-status-dot"
+            aria-label="Vector database is online"
+          />
         </div>
       </section>
     </aside>

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -6,8 +7,37 @@ from pypdf import PdfReader
 SUPPORTED_EXTENSIONS = {".pdf", ".txt"}
 
 
+def normalize_text(text: str) -> str:
+    """Normalize whitespace while preserving paragraph boundaries."""
+
+    if not isinstance(text, str):
+        raise TypeError("text must be a string.")
+
+    normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
+
+    normalized_text = re.sub(
+        r"[ \t]+",
+        " ",
+        normalized_text,
+    )
+
+    normalized_text = re.sub(
+        r" *\n *",
+        "\n",
+        normalized_text,
+    )
+
+    normalized_text = re.sub(
+        r"\n{3,}",
+        "\n\n",
+        normalized_text,
+    )
+
+    return normalized_text.strip()
+
+
 def read_pdf(file_path: Path) -> str:
-    """Extract text from a PDF document."""
+    """Extract and normalize text from a PDF document."""
 
     reader = PdfReader(file_path)
     pages: list[str] = []
@@ -15,62 +45,133 @@ def read_pdf(file_path: Path) -> str:
     for page in reader.pages:
         page_text = page.extract_text()
 
-        if page_text:
-            pages.append(page_text.strip())
+        if not page_text:
+            continue
+
+        normalized_page = normalize_text(page_text)
+
+        if normalized_page:
+            pages.append(normalized_page)
 
     return "\n\n".join(pages)
 
 
 def read_txt(file_path: Path) -> str:
-    """Read a UTF-8 encoded TXT document."""
+    """Read and normalize a UTF-8 encoded TXT document."""
 
-    return file_path.read_text(encoding="utf-8")
+    text = file_path.read_text(
+        encoding="utf-8",
+    )
+
+    return normalize_text(text)
 
 
 def read_document(file_path: Path) -> str:
     """Read a supported document according to its file extension."""
 
+    if not isinstance(file_path, Path):
+        raise TypeError(
+            "file_path must be a pathlib.Path instance."
+        )
+
     if not file_path.exists():
-        raise FileNotFoundError(f"Document not found: {file_path}")
+        raise FileNotFoundError(
+            f"Document not found: {file_path}"
+        )
 
     if not file_path.is_file():
-        raise ValueError(f"Path is not a file: {file_path}")
+        raise ValueError(
+            f"Path is not a file: {file_path}"
+        )
 
     suffix = file_path.suffix.lower()
 
+    if suffix not in SUPPORTED_EXTENSIONS:
+        raise ValueError(
+            f"Unsupported file type: {suffix}. "
+            f"Supported types: {sorted(SUPPORTED_EXTENSIONS)}"
+        )
+
     if suffix == ".pdf":
-        return read_pdf(file_path)
+        document_text = read_pdf(file_path)
+    else:
+        document_text = read_txt(file_path)
 
-    if suffix == ".txt":
-        return read_txt(file_path)
+    if not document_text:
+        raise ValueError(
+            "No readable text could be extracted from "
+            f"the document: {file_path}"
+        )
 
-    raise ValueError(
-        f"Unsupported file type: {suffix}. "
-        f"Supported types: {sorted(SUPPORTED_EXTENSIONS)}"
-    )
+    return document_text
 
 
 def chunk_text(
     text: str,
-    chunk_size: int = 500,
-    overlap: int = 50,
+    chunk_size: int = 600,
+    overlap: int = 80,
     minimum_chunk_size: int = 50,
 ) -> list[str]:
-    """Split text into word-safe overlapping chunks."""
+    """
+    Split text into word-safe overlapping character chunks.
+
+    Paragraph boundaries are preserved where possible. Chunk size and
+    overlap are measured in characters rather than tokens.
+    """
+
+    if not isinstance(text, str):
+        raise TypeError("text must be a string.")
+
+    if (
+        not isinstance(chunk_size, int)
+        or isinstance(chunk_size, bool)
+    ):
+        raise TypeError(
+            "chunk_size must be an integer."
+        )
+
+    if (
+        not isinstance(overlap, int)
+        or isinstance(overlap, bool)
+    ):
+        raise TypeError(
+            "overlap must be an integer."
+        )
+
+    if (
+        not isinstance(minimum_chunk_size, int)
+        or isinstance(minimum_chunk_size, bool)
+    ):
+        raise TypeError(
+            "minimum_chunk_size must be an integer."
+        )
 
     if chunk_size <= 0:
-        raise ValueError("chunk_size must be greater than zero.")
+        raise ValueError(
+            "chunk_size must be greater than zero."
+        )
 
     if overlap < 0:
-        raise ValueError("overlap cannot be negative.")
+        raise ValueError(
+            "overlap cannot be negative."
+        )
 
     if overlap >= chunk_size:
-        raise ValueError("overlap must be smaller than chunk_size.")
+        raise ValueError(
+            "overlap must be smaller than chunk_size."
+        )
 
     if minimum_chunk_size <= 0:
-        raise ValueError("minimum_chunk_size must be greater than zero.")
+        raise ValueError(
+            "minimum_chunk_size must be greater than zero."
+        )
 
-    words = text.split()
+    normalized_text = normalize_text(text)
+
+    if not normalized_text:
+        return []
+
+    words = normalized_text.split()
 
     if not words:
         return []
@@ -90,7 +191,10 @@ def chunk_text(
             if current_words:
                 added_length += 1
 
-            if current_words and current_length + added_length > chunk_size:
+            if (
+                current_words
+                and current_length + added_length > chunk_size
+            ):
                 break
 
             current_words.append(word)
@@ -98,7 +202,9 @@ def chunk_text(
             index += 1
 
         if not current_words:
-            current_words.append(words[start_index])
+            current_words.append(
+                words[start_index]
+            )
             index = start_index + 1
 
         chunk = " ".join(current_words).strip()
@@ -112,31 +218,54 @@ def chunk_text(
         overlap_words: list[str] = []
         overlap_length = 0
 
-        for previous_word in reversed(current_words):
-            candidate_length = len(previous_word)
+        for previous_word in reversed(
+            current_words
+        ):
+            candidate_length = len(
+                previous_word
+            )
 
             if overlap_words:
                 candidate_length += 1
 
-            if overlap_length + candidate_length > overlap:
+            if (
+                overlap_length + candidate_length
+                > overlap
+            ):
                 break
 
-            overlap_words.insert(0, previous_word)
+            overlap_words.insert(
+                0,
+                previous_word,
+            )
             overlap_length += candidate_length
 
-        overlap_word_count = len(overlap_words)
+        overlap_word_count = len(
+            overlap_words
+        )
 
-        next_start_index = index - overlap_word_count
+        next_start_index = (
+            index - overlap_word_count
+        )
 
         if next_start_index <= start_index:
             next_start_index = index
 
         start_index = next_start_index
 
-    if len(chunks) > 1 and len(chunks[-1]) < minimum_chunk_size:
-        merged_chunk = f"{chunks[-2]} {chunks[-1]}".strip()
+    if (
+        len(chunks) > 1
+        and len(chunks[-1]) < minimum_chunk_size
+    ):
+        merged_chunk = (
+            f"{chunks[-2]} {chunks[-1]}"
+        ).strip()
 
-        if len(merged_chunk) <= chunk_size + minimum_chunk_size:
+        maximum_merged_size = (
+            chunk_size + minimum_chunk_size
+        )
+
+        if len(merged_chunk) <= maximum_merged_size:
             chunks[-2] = merged_chunk
             chunks.pop()
 
@@ -144,48 +273,76 @@ def chunk_text(
 
 
 def main() -> None:
-    """Run local document parsing and chunk-size comparison tests."""
+    """Run local parsing and chunk-size comparison tests."""
 
-    sample_path = Path("data/sample.txt")
+    sample_path = Path(
+        "data/sample.txt"
+    )
 
     if not sample_path.exists():
-        print(f"Sample file not found: {sample_path}")
+        print(
+            f"Sample file not found: {sample_path}"
+        )
         return
 
-    document_text = read_document(sample_path)
-    test_sizes = [100, 200, 300]
+    document_text = read_document(
+        sample_path
+    )
+
+    test_sizes = [
+        300,
+        600,
+        900,
+    ]
 
     print("=" * 70)
     print("Chunk Size Comparison")
     print("=" * 70)
     print(f"Document: {sample_path}")
-    print(f"Document Character Count: {len(document_text)}")
+    print(
+        "Document Character Count: "
+        f"{len(document_text)}"
+    )
 
     for size in test_sizes:
         chunks = chunk_text(
             document_text,
             chunk_size=size,
-            overlap=20,
+            overlap=80,
             minimum_chunk_size=50,
         )
 
         average_length = (
-            sum(len(chunk) for chunk in chunks) / len(chunks)
+            sum(
+                len(chunk)
+                for chunk in chunks
+            )
+            / len(chunks)
             if chunks
             else 0
         )
 
         print()
         print(f"Chunk Size: {size}")
-        print(f"Chunk Count: {len(chunks)}")
-        print(f"Average Chunk Length: {average_length:.1f}")
+        print(
+            f"Chunk Count: {len(chunks)}"
+        )
+        print(
+            "Average Chunk Length: "
+            f"{average_length:.1f}"
+        )
 
-        for index, chunk in enumerate(chunks, start=1):
+        for index, chunk in enumerate(
+            chunks,
+            start=1,
+        ):
             print()
             print(f"Chunk {index}")
             print("-" * 70)
             print(chunk)
-            print(f"Characters: {len(chunk)}")
+            print(
+                f"Characters: {len(chunk)}"
+            )
             print("-" * 70)
 
 

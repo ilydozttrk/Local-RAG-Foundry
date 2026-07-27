@@ -1,3 +1,19 @@
+
+"""
+Legacy utility.
+
+Embeddings are now generated automatically during
+document ingestion.
+
+This script is kept only for maintenance tasks such as:
+
+- rebuilding embeddings
+- regenerating embeddings after changing the embedding model
+- debugging
+
+It is not part of the normal ingestion pipeline.
+"""
+
 from app.database_manager import get_chunks, insert_embedding
 from app.query_embedding import MODEL_ALIAS, QueryEmbedder
 

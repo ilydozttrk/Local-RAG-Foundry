@@ -62,11 +62,13 @@ export async function uploadDocument(
 
 export async function askQuestion(
   question: string,
+  documentIds: number[],
 ): Promise<ChatResponse> {
   const response = await api.post<ChatResponse>(
     "/api/chat",
     {
       question,
+      document_ids: documentIds,
     },
   );
 
