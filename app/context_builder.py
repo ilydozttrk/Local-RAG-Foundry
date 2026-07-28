@@ -5,7 +5,12 @@ from app.retrieval import RetrievalResult, retrieve_top_k
 def build_context(
     results: list[RetrievalResult],
 ) -> str:
-    """Build a structured context string from retrieved chunks."""
+    """
+    Build the grounded context supplied to the language model.
+
+    Each retrieved chunk is wrapped in a numbered SOURCE block together
+    with metadata describing its origin.
+    """
 
     if not isinstance(results, list):
         raise TypeError(
@@ -21,7 +26,7 @@ def build_context(
         results,
         start=1,
     ):
-        content = result["content"].strip()
+        content = str(result["content"]).strip()
 
         if not content:
             continue
@@ -56,7 +61,7 @@ def main() -> None:
         query=question,
         top_k=3,
         document_ids=document_ids,
-        min_similarity_score=0.50,
+        min_similarity_score=0.33,
     )
 
     print("=" * 80)

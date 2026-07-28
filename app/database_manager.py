@@ -39,7 +39,11 @@ def normalize_source_path(source_path: str) -> str:
     if not cleaned_source_path:
         raise ValueError("source_path cannot be empty.")
 
-    return cleaned_source_path.replace("\\", "/")
+    return (
+    cleaned_source_path
+    .replace("\\", "/")
+    .rstrip("/")
+    )
 
 
 def insert_document(

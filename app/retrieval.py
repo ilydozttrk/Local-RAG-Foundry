@@ -5,13 +5,8 @@ from app.query_embedding import MODEL_ALIAS, QueryEmbedder
 from app.similarity import cosine_similarity
 
 
-# Temporary diagnostic switch.
-# Set this to False after retrieval threshold testing is complete.
-DEBUG_RETRIEVAL = True
-
-# Controlled fallback used only when exactly one document is selected
-# and that document contains exactly one indexed chunk.
-SINGLE_CHUNK_FALLBACK_SCORE = 0.25
+# Enable only when detailed retrieval diagnostics are required.
+DEBUG_RETRIEVAL = False
 
 
 class RetrievalResult(TypedDict):
@@ -44,7 +39,6 @@ def parse_embedding(vector_text: str) -> list[float]:
             float(value.strip())
             for value in cleaned_vector.split(",")
         ]
-
     except ValueError as error:
         raise ValueError(
             "Embedding vector contains an invalid numeric value."
@@ -66,7 +60,6 @@ def validate_document_ids(
 
     try:
         normalized_document_ids = list(document_ids)
-
     except TypeError as error:
         raise TypeError(
             "document_ids must be a sequence of integers."
@@ -163,14 +156,10 @@ def retrieve_top_k(
     """
     Retrieve the most semantically similar chunks for a query.
 
-    Results below min_similarity_score are normally excluded.
+    Results below min_similarity_score are excluded.
 
-    When exactly one document is selected and that document contains
-    exactly one indexed chunk, a controlled fallback threshold may be
-    used to avoid rejecting short but relevant TXT-style documents.
-
-    When document_ids is supplied, retrieval is restricted to the
-    selected active documents.
+    When document_ids is supplied, retrieval is restricted to chunks
+    belonging to the selected active documents.
     """
 
     if not isinstance(query, str):
@@ -195,9 +184,7 @@ def retrieve_top_k(
             "min_similarity_score must be a numeric value."
         )
 
-    normalized_minimum_score = float(
-        min_similarity_score
-    )
+    normalized_minimum_score = float(min_similarity_score)
 
     if not -1.0 <= normalized_minimum_score <= 1.0:
         raise ValueError(
@@ -210,7 +197,10 @@ def retrieve_top_k(
 
     if cleaned_document_ids == []:
         if DEBUG_RETRIEVAL:
-            print("\n[RETRIEVAL DEBUG] No document was selected.")
+            print(
+                "\n[RETRIEVAL DEBUG] "
+                "No document was selected."
+            )
 
         return []
 
@@ -246,7 +236,6 @@ def retrieve_top_k(
         embedder.unload()
 
     results: list[RetrievalResult] = []
-    scored_candidates: list[tuple[object, float]] = []
 
     for row in rows:
         chunk_embedding = parse_embedding(
@@ -264,10 +253,6 @@ def retrieve_top_k(
         similarity_score = cosine_similarity(
             query_embedding,
             chunk_embedding,
-        )
-
-        scored_candidates.append(
-            (row, similarity_score)
         )
 
         if DEBUG_RETRIEVAL:
@@ -289,44 +274,6 @@ def retrieve_top_k(
                 similarity_score=similarity_score,
             )
         )
-
-    should_apply_single_chunk_fallback = (
-        not results
-        and cleaned_document_ids is not None
-        and len(cleaned_document_ids) == 1
-        and len(scored_candidates) == 1
-    )
-
-    if should_apply_single_chunk_fallback:
-        fallback_row, fallback_score = scored_candidates[0]
-
-        if fallback_score >= SINGLE_CHUNK_FALLBACK_SCORE:
-            results.append(
-                build_retrieval_result(
-                    row=fallback_row,
-                    similarity_score=fallback_score,
-                )
-            )
-
-            if DEBUG_RETRIEVAL:
-                print(
-                    "Single-chunk fallback : APPLIED\n"
-                    f"Fallback threshold   : "
-                    f"{SINGLE_CHUNK_FALLBACK_SCORE:.4f}\n"
-                    f"Accepted score       : "
-                    f"{fallback_score:.4f}\n"
-                    f"{'-' * 80}"
-                )
-
-        elif DEBUG_RETRIEVAL:
-            print(
-                "Single-chunk fallback : REJECTED\n"
-                f"Fallback threshold   : "
-                f"{SINGLE_CHUNK_FALLBACK_SCORE:.4f}\n"
-                f"Candidate score      : "
-                f"{fallback_score:.4f}\n"
-                f"{'-' * 80}"
-            )
 
     results.sort(
         key=lambda result: result["similarity_score"],
@@ -350,7 +297,7 @@ def main() -> None:
 
     query = "Python hangi alanlarda kullanılır?"
     top_k = 3
-    min_similarity_score = 0.50
+    min_similarity_score = 0.33
 
     # Set this to a currently active document ID before running
     # retrieval.py directly.

@@ -37,11 +37,13 @@ class RAGPipeline:
     def _validate_top_k(top_k: int) -> int:
         """Validate and normalize the retrieval result limit."""
 
-        if not isinstance(top_k, int) or isinstance(
-            top_k,
-            bool,
+        if (
+            not isinstance(top_k, int)
+            or isinstance(top_k, bool)
         ):
-            raise TypeError("top_k must be an integer.")
+            raise TypeError(
+                "top_k must be an integer."
+            )
 
         if top_k <= 0:
             raise ValueError(
@@ -84,12 +86,16 @@ class RAGPipeline:
         """Validate and normalize a user question."""
 
         if not isinstance(question, str):
-            raise TypeError("Question must be a string.")
+            raise TypeError(
+                "Question must be a string."
+            )
 
         cleaned_question = question.strip()
 
         if not cleaned_question:
-            raise ValueError("Question cannot be empty.")
+            raise ValueError(
+                "Question cannot be empty."
+            )
 
         return cleaned_question
 
@@ -119,76 +125,28 @@ class RAGPipeline:
                 "Every document ID must be a positive integer."
             )
 
-        return list(dict.fromkeys(document_ids))
+        return list(
+            dict.fromkeys(document_ids)
+        )
 
-    @staticmethod
-    def _looks_turkish(text: str) -> bool:
-        """
-        Estimate whether a question is written in Turkish.
-
-        This is intentionally lightweight and is used only for
-        local fallback messages when retrieval returns no result.
-        """
-
-        normalized_text = text.casefold()
-
-        turkish_characters = {
-            "ç",
-            "ğ",
-            "ı",
-            "ö",
-            "ş",
-            "ü",
-        }
-
-        if any(
-            character in normalized_text
-            for character in turkish_characters
-        ):
-            return True
-
-        turkish_keywords = {
-            "ne",
-            "nedir",
-            "nasıl",
-            "hangi",
-            "nerede",
-            "nereye",
-            "nereden",
-            "neden",
-            "niçin",
-            "kim",
-            "kaç",
-            "kullanılır",
-            "kullanilir",
-            "alanlarda",
-            "hakkında",
-            "hakkinda",
-            "açıkla",
-            "acikla",
-            "özetle",
-            "ozetle",
-            "belge",
-            "dosya",
-        }
-
-        words = {
-            word.strip(
-                ".,!?;:()[]{}\"'"
-            )
-            for word in normalized_text.split()
-        }
-
-        return bool(words & turkish_keywords)
-
-    @classmethod
     def _build_no_results_answer(
-        cls,
+        self,
         question: str,
     ) -> str:
-        """Build a language-aware answer for empty retrieval results."""
+        """
+        Build a language-aware answer when no usable context exists.
 
-        if cls._looks_turkish(question):
+        Language detection is delegated to PromptBuilder so that prompt
+        generation and fallback responses use the same detection logic.
+        """
+
+        response_language = (
+            self.prompt_builder.detect_response_language(
+                question
+            )
+        )
+
+        if response_language == "Turkish":
             return (
                 "Seçili belgelerde bu soruyu güvenilir şekilde "
                 "yanıtlamak için yeterince ilgili bilgi bulamadım."
@@ -199,6 +157,20 @@ class RAGPipeline:
             "in the selected documents to answer this question "
             "reliably."
         )
+
+    def _build_empty_response(
+        self,
+        question: str,
+    ) -> RAGResponse:
+        """Build a response when retrieval yields no usable context."""
+
+        return {
+            "question": question,
+            "answer": self._build_no_results_answer(
+                question
+            ),
+            "sources": [],
+        }
 
     def ask(
         self,
@@ -230,15 +202,16 @@ class RAGPipeline:
         )
 
         if not results:
-            return {
-                "question": cleaned_question,
-                "answer": self._build_no_results_answer(
-                    cleaned_question
-                ),
-                "sources": [],
-            }
+            return self._build_empty_response(
+                cleaned_question
+            )
 
         context = build_context(results)
+
+        if not context:
+            return self._build_empty_response(
+                cleaned_question
+            )
 
         prompt = self.prompt_builder.build_prompt(
             question=cleaned_question,
@@ -268,6 +241,8 @@ class RAGPipeline:
         self._closed = True
 
     def __enter__(self) -> "RAGPipeline":
+        """Return the active pipeline instance."""
+
         return self
 
     def __exit__(
@@ -276,6 +251,8 @@ class RAGPipeline:
         exc_value,
         traceback,
     ) -> None:
+        """Release pipeline resources when leaving a context block."""
+
         self.close()
 
 
@@ -290,7 +267,7 @@ def main() -> None:
 
     with RAGPipeline(
         top_k=3,
-        min_similarity_score=0.50,
+        min_similarity_score=0.33,
     ) as pipeline:
         response = pipeline.ask(
             question=question,

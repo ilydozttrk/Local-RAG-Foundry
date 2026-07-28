@@ -7,7 +7,7 @@ MODEL_ALIAS = "phi-4-mini"
 
 # Temporary diagnostic switch.
 # Set this to False after prompt-flow debugging is complete.
-DEBUG_GENERATION_MESSAGES = True
+DEBUG_GENERATION_MESSAGES = False
 
 
 class AnswerGenerator:
@@ -123,6 +123,8 @@ class AnswerGenerator:
             r"</DECISION>",
             r"</sentence>",
             r"</response>",
+            r"</think>",
+            r"<think>",
         )
 
         for pattern in artifact_patterns:
