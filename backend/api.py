@@ -71,7 +71,7 @@ def get_rag_pipeline() -> RAGPipeline:
     if rag_pipeline is None:
         rag_pipeline = RAGPipeline(
             top_k=3, 
-            min_similarity_score=0.35,)
+            min_similarity_score=0.33,)
 
     return rag_pipeline
 

@@ -20,7 +20,7 @@ class RAGPipeline:
     def __init__(
         self,
         top_k: int = 3,
-        min_similarity_score: float = 0.35,
+        min_similarity_score: float = 0.33,
     ) -> None:
         self.top_k = self._validate_top_k(top_k)
         self.min_similarity_score = (
