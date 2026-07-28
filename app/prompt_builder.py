@@ -117,8 +117,6 @@ I could not find enough relevant information in the selected documents to answer
         )
 
         return (
-            f"{self.system_instruction}\n\n"
-
             "==============================\n"
             "CONTEXT\n"
             "==============================\n"

@@ -9,6 +9,10 @@ from app.similarity import cosine_similarity
 # Set this to False after retrieval threshold testing is complete.
 DEBUG_RETRIEVAL = True
 
+# Controlled fallback used only when exactly one document is selected
+# and that document contains exactly one indexed chunk.
+SINGLE_CHUNK_FALLBACK_SCORE = 0.25
+
 
 class RetrievalResult(TypedDict):
     """Represent a ranked semantic retrieval result."""
@@ -131,6 +135,25 @@ def print_candidate_debug(
     )
 
 
+def build_retrieval_result(
+    row,
+    similarity_score: float,
+) -> RetrievalResult:
+    """Build a normalized retrieval result from a database row."""
+
+    return {
+        "chunk_id": int(row["chunk_id"]),
+        "document_id": int(row["document_id"]),
+        "chunk_index": int(row["chunk_index"]),
+        "filename": str(row["filename"]),
+        "file_type": str(row["file_type"]),
+        "source_path": str(row["source_path"]),
+        "content": str(row["content"]),
+        "model_name": str(row["model_name"]),
+        "similarity_score": similarity_score,
+    }
+
+
 def retrieve_top_k(
     query: str,
     top_k: int = 3,
@@ -140,7 +163,11 @@ def retrieve_top_k(
     """
     Retrieve the most semantically similar chunks for a query.
 
-    Results below min_similarity_score are excluded.
+    Results below min_similarity_score are normally excluded.
+
+    When exactly one document is selected and that document contains
+    exactly one indexed chunk, a controlled fallback threshold may be
+    used to avoid rejecting short but relevant TXT-style documents.
 
     When document_ids is supplied, retrieval is restricted to the
     selected active documents.
@@ -219,6 +246,7 @@ def retrieve_top_k(
         embedder.unload()
 
     results: list[RetrievalResult] = []
+    scored_candidates: list[tuple[object, float]] = []
 
     for row in rows:
         chunk_embedding = parse_embedding(
@@ -238,6 +266,10 @@ def retrieve_top_k(
             chunk_embedding,
         )
 
+        scored_candidates.append(
+            (row, similarity_score)
+        )
+
         if DEBUG_RETRIEVAL:
             print_candidate_debug(
                 filename=str(row["filename"]),
@@ -251,19 +283,50 @@ def retrieve_top_k(
         if similarity_score < normalized_minimum_score:
             continue
 
-        result: RetrievalResult = {
-            "chunk_id": int(row["chunk_id"]),
-            "document_id": int(row["document_id"]),
-            "chunk_index": int(row["chunk_index"]),
-            "filename": str(row["filename"]),
-            "file_type": str(row["file_type"]),
-            "source_path": str(row["source_path"]),
-            "content": str(row["content"]),
-            "model_name": str(row["model_name"]),
-            "similarity_score": similarity_score,
-        }
+        results.append(
+            build_retrieval_result(
+                row=row,
+                similarity_score=similarity_score,
+            )
+        )
 
-        results.append(result)
+    should_apply_single_chunk_fallback = (
+        not results
+        and cleaned_document_ids is not None
+        and len(cleaned_document_ids) == 1
+        and len(scored_candidates) == 1
+    )
+
+    if should_apply_single_chunk_fallback:
+        fallback_row, fallback_score = scored_candidates[0]
+
+        if fallback_score >= SINGLE_CHUNK_FALLBACK_SCORE:
+            results.append(
+                build_retrieval_result(
+                    row=fallback_row,
+                    similarity_score=fallback_score,
+                )
+            )
+
+            if DEBUG_RETRIEVAL:
+                print(
+                    "Single-chunk fallback : APPLIED\n"
+                    f"Fallback threshold   : "
+                    f"{SINGLE_CHUNK_FALLBACK_SCORE:.4f}\n"
+                    f"Accepted score       : "
+                    f"{fallback_score:.4f}\n"
+                    f"{'-' * 80}"
+                )
+
+        elif DEBUG_RETRIEVAL:
+            print(
+                "Single-chunk fallback : REJECTED\n"
+                f"Fallback threshold   : "
+                f"{SINGLE_CHUNK_FALLBACK_SCORE:.4f}\n"
+                f"Candidate score      : "
+                f"{fallback_score:.4f}\n"
+                f"{'-' * 80}"
+            )
 
     results.sort(
         key=lambda result: result["similarity_score"],
