@@ -4,15 +4,15 @@ import {
   useRef,
   useState,
 } from "react";
-import axios from "axios";
 
 import "./styles/app.css";
 
+import Chat from "./components/Chat";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
-import Chat from "./components/Chat";
-import api from "./services/api";
-
+import api, {
+  getApiErrorMessage,
+} from "./services/api";
 
 export interface DocumentItem {
   document_id: number;
@@ -23,6 +23,17 @@ export interface DocumentItem {
   is_active: boolean;
 }
 
+function areNumberArraysEqual(
+  first: number[],
+  second: number[],
+): boolean {
+  return (
+    first.length === second.length &&
+    first.every(
+      (value, index) => value === second[index],
+    )
+  );
+}
 
 function App() {
   const documentSelectionInitialized = useRef(false);
@@ -59,45 +70,34 @@ function App() {
         );
 
         const fetchedDocuments = response.data;
-        const activeDocuments = fetchedDocuments.filter(
-          (document) => document.is_active,
-        );
 
-        const activeDocumentIds = activeDocuments.map(
-          (document) => document.document_id,
+        const activeDocumentIds = fetchedDocuments
+          .filter((document) => document.is_active)
+          .map((document) => document.document_id);
+
+        const activeDocumentIdSet = new Set(
+          activeDocumentIds,
         );
 
         setDocuments(fetchedDocuments);
 
         setSelectedDocumentIds(
           (currentSelectedDocumentIds) => {
-            /*
-             * On the initial page load, select every active
-             * document automatically.
-             */
             if (!documentSelectionInitialized.current) {
               documentSelectionInitialized.current = true;
 
               return activeDocumentIds;
             }
 
-            /*
-             * After later refreshes, preserve valid selections
-             * and remove documents that are no longer active.
-             */
             const nextSelectedDocumentIds =
               currentSelectedDocumentIds.filter(
                 (documentId) =>
-                  activeDocumentIds.includes(documentId),
+                  activeDocumentIdSet.has(documentId),
               );
 
-            /*
-             * Automatically select a successfully uploaded
-             * document so it can immediately be used in chat.
-             */
             if (
               newlyUploadedDocumentId !== undefined &&
-              activeDocumentIds.includes(
+              activeDocumentIdSet.has(
                 newlyUploadedDocumentId,
               ) &&
               !nextSelectedDocumentIds.includes(
@@ -109,25 +109,25 @@ function App() {
               );
             }
 
+            if (
+              areNumberArraysEqual(
+                currentSelectedDocumentIds,
+                nextSelectedDocumentIds,
+              )
+            ) {
+              return currentSelectedDocumentIds;
+            }
+
             return nextSelectedDocumentIds;
           },
         );
       } catch (error: unknown) {
-        if (axios.isAxiosError(error)) {
-          const detail = error.response?.data?.detail;
-
-          if (typeof detail === "string") {
-            setDocumentsError(detail);
-          } else {
-            setDocumentsError(
-              "The document list could not be loaded.",
-            );
-          }
-        } else {
-          setDocumentsError(
-            "An unexpected error occurred while loading documents.",
-          );
-        }
+        setDocumentsError(
+          getApiErrorMessage(
+            error,
+            "The document list could not be loaded.",
+          ),
+        );
       } finally {
         setDocumentsLoading(false);
       }
@@ -143,7 +143,7 @@ function App() {
     <div className="app">
       <Header />
 
-      <div className="content">
+      <main className="content">
         <Sidebar
           documents={documents}
           selectedDocumentIds={selectedDocumentIds}
@@ -156,7 +156,7 @@ function App() {
         <Chat
           selectedDocumentIds={selectedDocumentIds}
         />
-      </div>
+      </main>
     </div>
   );
 }

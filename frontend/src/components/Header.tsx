@@ -1,11 +1,17 @@
-import { Cpu, ShieldCheck } from "lucide-react";
+import {
+  Cpu,
+  ShieldCheck,
+} from "lucide-react";
 
 function Header() {
   return (
     <header className="app-header">
       <div className="brand">
         <div className="brand-icon">
-          <Cpu size={22} />
+          <Cpu
+            size={22}
+            aria-hidden="true"
+          />
         </div>
 
         <div className="brand-copy">
@@ -21,12 +27,20 @@ function Header() {
 
       <div className="header-status">
         <div className="privacy-badge">
-          <ShieldCheck size={15} />
+          <ShieldCheck
+            size={15}
+            aria-hidden="true"
+          />
+
           <span>Runs locally</span>
         </div>
 
         <div className="model-badge">
-          <span className="status-dot" />
+          <span
+            className="status-dot"
+            aria-hidden="true"
+          />
+
           Phi-4 Mini
         </div>
       </div>

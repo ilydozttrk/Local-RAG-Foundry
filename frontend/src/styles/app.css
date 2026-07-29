@@ -28,6 +28,7 @@
 
   --text: #f8fafc;
   --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8; 
   --muted: #7f8ba3;
 
   --border: rgba(167, 139, 250, 0.14);
@@ -966,7 +967,7 @@ textarea {
 }
 
 .upload-feedback span {
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.72rem;
   line-height: 1.45;
 }
@@ -1049,7 +1050,7 @@ textarea {
 }
 
 .uploaded-document-details span {
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.68rem;
 }
 
@@ -1161,7 +1162,7 @@ textarea {
 
 .message-role {
   margin-bottom: 7px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1226,7 +1227,7 @@ textarea {
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 16px;
   background: rgba(15, 23, 42, 0.58);
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.82rem;
 }
 
@@ -1253,7 +1254,7 @@ textarea {
 }
 
 .sources-heading {
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.07em;
@@ -1295,7 +1296,7 @@ textarea {
   flex-direction: column;
   gap: 6px;
   padding: 0 12px 12px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 0.7rem;
 }
 

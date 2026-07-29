@@ -11,11 +11,11 @@ import {
   useRef,
   useState,
 } from "react";
-import axios from "axios";
 import ReactMarkdown from "react-markdown";
 
 import {
   askQuestion,
+  getApiErrorMessage,
   type SourceResponse,
 } from "../services/api";
 
@@ -45,7 +45,7 @@ function Chat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageIdRef = useRef(0);
 
-  const createMessageId = () => {
+  const createMessageId = (): number => {
     messageIdRef.current += 1;
 
     return messageIdRef.current;
@@ -60,7 +60,7 @@ function Chat({
 
   const sendQuestion = async (
     submittedQuestion: string,
-  ) => {
+  ): Promise<void> => {
     const cleanedQuestion = submittedQuestion.trim();
 
     if (!cleanedQuestion || loading) {
@@ -108,22 +108,12 @@ function Chat({
         assistantMessage,
       ]);
     } catch (requestError: unknown) {
-      if (axios.isAxiosError(requestError)) {
-        const detail =
-          requestError.response?.data?.detail;
-
-        if (typeof detail === "string") {
-          setError(detail);
-        } else {
-          setError(
-            "The assistant could not generate an answer.",
-          );
-        }
-      } else {
-        setError(
-          "An unexpected error occurred while generating the answer.",
-        );
-      }
+      setError(
+        getApiErrorMessage(
+          requestError,
+          "The assistant could not generate an answer.",
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -131,7 +121,7 @@ function Chat({
 
   const handleSubmit = (
     event: FormEvent<HTMLFormElement>,
-  ) => {
+  ): void => {
     event.preventDefault();
 
     void sendQuestion(question);
@@ -139,10 +129,11 @@ function Chat({
 
   const handleKeyDown = (
     event: KeyboardEvent<HTMLTextAreaElement>,
-  ) => {
+  ): void => {
     if (
       event.key === "Enter" &&
-      !event.shiftKey
+      !event.shiftKey &&
+      !event.nativeEvent.isComposing
     ) {
       event.preventDefault();
 
@@ -152,7 +143,7 @@ function Chat({
 
   const handleQuestionChange = (
     value: string,
-  ) => {
+  ): void => {
     setQuestion(value);
 
     if (error) {
@@ -160,7 +151,7 @@ function Chat({
     }
   };
 
-  const handleClearChat = () => {
+  const handleClearChat = (): void => {
     setMessages([]);
     setQuestion("");
     setError(null);
@@ -168,7 +159,7 @@ function Chat({
 
   const handleSuggestion = (
     suggestedQuestion: string,
-  ) => {
+  ): void => {
     setQuestion(suggestedQuestion);
     setError(null);
   };
@@ -203,6 +194,7 @@ function Chat({
           hasMessages ? "messages-active" : ""
         }`}
         aria-live="polite"
+        aria-busy={loading}
       >
         {!hasMessages && (
           <>

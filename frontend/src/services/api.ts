@@ -1,8 +1,21 @@
 import axios from "axios";
 
+const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL
+).replace(/\/+$/, "");
+
+const HEALTH_TIMEOUT_MS = 5_000;
+const UPLOAD_TIMEOUT_MS = 300_000;
+const CHAT_TIMEOUT_MS = 300_000;
+
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000",
-  timeout: 0,
+  baseURL: API_BASE_URL,
+  timeout: 30_000,
+  headers: {
+    Accept: "application/json",
+  },
 });
 
 export interface HealthResponse {
@@ -37,9 +50,17 @@ export interface ChatResponse {
   sources: SourceResponse[];
 }
 
+interface ApiErrorResponse {
+  detail?: string;
+  message?: string;
+}
+
 export async function getHealth(): Promise<HealthResponse> {
   const response = await api.get<HealthResponse>(
     "/api/health",
+    {
+      timeout: HEALTH_TIMEOUT_MS,
+    },
   );
 
   return response.data;
@@ -55,6 +76,9 @@ export async function uploadDocument(
   const response = await api.post<UploadResponse>(
     "/api/upload",
     formData,
+    {
+      timeout: UPLOAD_TIMEOUT_MS,
+    },
   );
 
   return response.data;
@@ -70,9 +94,39 @@ export async function askQuestion(
       question,
       document_ids: documentIds,
     },
+    {
+      timeout: CHAT_TIMEOUT_MS,
+    },
   );
 
   return response.data;
+}
+
+export function getApiErrorMessage(
+  error: unknown,
+  fallbackMessage = "An unexpected error occurred.",
+): string {
+  if (!axios.isAxiosError<ApiErrorResponse>(error)) {
+    return fallbackMessage;
+  }
+
+  const backendMessage =
+    error.response?.data?.detail ??
+    error.response?.data?.message;
+
+  if (backendMessage) {
+    return backendMessage;
+  }
+
+  if (error.code === "ECONNABORTED") {
+    return "The request timed out. Please try again.";
+  }
+
+  if (!error.response) {
+    return "Unable to connect to the backend service.";
+  }
+
+  return error.message || fallbackMessage;
 }
 
 export default api;
