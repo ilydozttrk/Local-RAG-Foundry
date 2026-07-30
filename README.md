@@ -1,224 +1,80 @@
-<div align="center">
-
 Local RAG AI Assistant
 
-Private, source-grounded document intelligence with Microsoft Foundry Local
-
-Ask questions across your PDF and TXT documents without sending their contents to a cloud inference API.
-
-<br>
+A fully local Retrieval-Augmented Generation application for asking questions over PDF and TXT documents using Microsoft Foundry Local.
 
 
 
-<br>
+About
 
-Overview ·Features ·Architecture ·Installation ·Usage ·Limitations
+Local RAG AI Assistant is a full-stack application that retrieves relevant passages from user-selected documents and uses a local language model to generate source-grounded answers.
 
-</div>
+The entire pipeline runs on the user's device:
 
-Overview
+Document → Parse → Chunk → Embed → Store → Retrieve → Generate
 
-Local RAG AI Assistant is a full-stack Retrieval-Augmented Generation application that answers questions using information retrieved from user-selected documents.
-
-The complete pipeline runs locally:
-
-document parsing → text chunking → embeddings → semantic retrieval → context construction → local generation
-
-Uploaded documents, embeddings, prompts, and retrieved context remain on the user's machine. Answers are generated from the selected sources and displayed together with the passages used during retrieval.
-
-Why this project?
-
-Cloud-based AI tools are convenient, but uploading private documents to external services is not always appropriate. This project explores a local-first alternative that combines:
-
-document-aware question answering,
-
-semantic retrieval,
-
-transparent source attribution,
-
-hallucination control,
-
-and offline language-model inference.
+Documents, embeddings, retrieved context, and model prompts are processed locally without a cloud inference API.
 
 Features
 
-<table>
-<tr>
-<td width="50%" valign="top">
+PDF and TXT document ingestion
 
-Document intelligence
-
-PDF and TXT ingestion
-
-Shared text normalization
-
-Overlapping text chunking
+Text normalization and overlapping chunk generation
 
 Local embedding generation
 
-SQLite document storage
+SQLite storage for documents, chunks, and embeddings
 
-Normalized source paths
+Document-filtered semantic search using cosine similarity
 
-</td>
-<td width="50%" valign="top">
+Configurable Top-K retrieval and similarity threshold
 
-Grounded answers
+Grounded prompt construction with source metadata
 
-Semantic similarity search
-
-Document-filtered retrieval
-
-Configurable relevance threshold
-
-Structured source context
-
-Controlled fallback responses
-
-Source cards with similarity scores
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-Local-first architecture
-
-Microsoft Foundry Local inference
-
-No cloud model API required
-
-Local document processing
-
-Local knowledge base
-
-Local response generation
-
-Privacy-oriented workflow
-
-</td>
-<td width="50%" valign="top">
-
-Full-stack experience
+Local inference through Microsoft Foundry Local
 
 FastAPI backend
 
-React + TypeScript frontend
+React, TypeScript, and Vite frontend
 
-Multiple document selection
+Multi-document selection
 
 Markdown answer rendering
 
-Loading and error states
+Retrieved source cards with similarity scores
 
-Responsive interface
-
-</td>
-</tr>
-</table>
-
-Project Status
-
-v0.1 — Initial working release
-
-Component
-
-Status
-
-PDF and TXT parsing
-
-✅
-
-Text normalization and chunking
-
-✅
-
-Local embedding generation
-
-✅
-
-SQLite knowledge base
-
-✅
-
-Semantic retrieval
-
-✅
-
-Document filtering
-
-✅
-
-Similarity threshold
-
-✅
-
-Context and prompt construction
-
-✅
-
-Local response generation
-
-✅
-
-FastAPI integration
-
-✅
-
-React interface
-
-✅
-
-Source attribution
-
-✅
-
-Multi-document retrieval
-
-✅
-
-End-to-end verification
-
-✅
-
-The complete document-to-answer pipeline has been implemented and tested.
+Controlled fallback for unrelated questions
 
 Architecture
 
-flowchart TB
-    subgraph Ingestion["Document Ingestion"]
-        A["PDF / TXT"] --> B["Parse & Normalize"]
-        B --> C["Create Chunks"]
-        C --> D["Generate Embeddings"]
-        D --> E[("SQLite Knowledge Base")]
-    end
+flowchart TD
+    A["PDF / TXT"] --> B["Parse and normalize"]
+    B --> C["Create chunks"]
+    C --> D["Generate embeddings"]
+    D --> E[("SQLite")]
+    F["User question"] --> G["Query embedding"]
+    E --> H["Semantic retrieval"]
+    G --> H
+    H --> I["Context and prompt"]
+    I --> J["Foundry Local / Phi-4 Mini"]
+    J --> K["Answer and sources"]
 
-    subgraph Retrieval["Question Answering"]
-        F["User Question"] --> G["Query Embedding"]
-        G --> H["Semantic Retrieval"]
-        E --> H
-        H --> I["Context Builder"]
-        I --> J["Foundry Local LLM"]
-        J --> K["Answer + Sources"]
-    end
+Ingestion
 
-Ingestion pipeline
-
-The user uploads a PDF or TXT document.
-
-The backend validates and parses the file.
+The uploaded document is validated and parsed.
 
 Extracted text is normalized.
 
-The text is divided into overlapping chunks.
+Text is divided into overlapping chunks.
 
-A local embedding is generated for every chunk.
+A local embedding is generated for each chunk.
 
-Documents, chunks, metadata, and embeddings are stored in SQLite.
+Document metadata, chunks, and embeddings are stored in SQLite.
 
-Chunking setting
+Default chunking configuration:
 
-Default
+Setting
+
+Value
 
 Chunk size
 
@@ -232,49 +88,33 @@ Minimum chunk size
 
 50
 
-Retrieval pipeline
+Retrieval and generation
 
 The user selects one or more indexed documents.
 
 The question is converted into an embedding.
 
-Retrieval is limited to the selected document IDs.
+Retrieval is restricted to the selected document IDs.
 
-Cosine similarity scores are calculated.
+Candidate chunks are ranked using cosine similarity.
 
-Results below the relevance threshold are removed.
+Chunks below the minimum similarity threshold are excluded.
 
-The remaining chunks are converted into structured context.
+Relevant passages and their metadata are added to the prompt.
 
-The local model generates an answer using only that context.
+Phi-4 Mini generates an answer using the retrieved context.
 
-The completed answer and its retrieved sources are returned to the interface.
+The completed answer and its sources are returned to the interface.
 
-If no sufficiently relevant passage is found, the system returns a controlled fallback response instead of asking the model to guess.
+If no sufficiently relevant passage is found, the application returns a controlled fallback instead of asking the model to guess.
 
-Source-Aware Context
-
-Retrieved passages are sent to the model in structured source blocks:
-
-<SOURCE_1>
-filename: example.pdf
-source_path: data/uploads/example.pdf
-document_id: 1
-chunk_index: 3
-similarity_score: 0.82
-
-Retrieved document content...
-</SOURCE_1>
-
-This structure preserves provenance throughout the RAG pipeline and makes it possible to verify whether the displayed source matches the context used for the answer.
-
-Technology Stack
+Tech Stack
 
 Layer
 
 Technology
 
-Local inference
+Local model runtime
 
 Microsoft Foundry Local
 
@@ -298,15 +138,13 @@ Retrieval
 
 Local embeddings, cosine similarity
 
-Documents
+Supported files
 
 PDF, TXT
 
 Installation
 
 Prerequisites
-
-Before starting, install:
 
 Python 3.12
 
@@ -316,7 +154,7 @@ Git
 
 Microsoft Foundry Local
 
-A compatible local chat model and embedding model
+Compatible local chat and embedding models
 
 1. Clone the repository
 
@@ -325,12 +163,12 @@ cd Local-RAG-Foundry
 
 2. Create a virtual environment
 
-Windows PowerShell
+Windows PowerShell:
 
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 
-macOS or Linux
+macOS or Linux:
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -344,9 +182,7 @@ pip install -r requirements.txt
 foundry service status
 foundry model list
 
-Make sure the models configured for the project are available before starting the backend.
-
-Foundry Local model aliases and execution providers may vary depending on the installed version and hardware.
+Model aliases and execution providers may differ depending on the installed Foundry Local version and available hardware.
 
 5. Install frontend dependencies
 
@@ -355,7 +191,7 @@ npm install
 
 Running the Application
 
-The backend and frontend must run in separate terminals.
+Run the backend and frontend in separate terminals.
 
 Backend
 
@@ -364,191 +200,111 @@ From the repository root:
 .\.venv\Scripts\Activate.ps1
 uvicorn backend.api:app --reload
 
-The API runs at:
+The API and interactive documentation are available at:
 
-http://127.0.0.1:8000
+API: http://127.0.0.1:8000
 
-Interactive FastAPI documentation:
-
-http://127.0.0.1:8000/docs
+Swagger UI: http://127.0.0.1:8000/docs
 
 Frontend
-
-In a second terminal:
 
 cd frontend
 npm run dev
 
-Open:
+Open http://localhost:5173.
 
-http://localhost:5173
-
-If Vite selects another port, make sure that the backend CORS configuration permits that frontend origin.
+If Vite selects a different port, ensure that the backend CORS configuration permits that origin.
 
 Usage
 
 Start Microsoft Foundry Local and the required models.
 
-Run the FastAPI backend.
+Start the FastAPI backend.
 
-Run the React frontend.
+Start the React frontend.
 
 Upload one or more PDF or TXT documents.
 
-Wait for local indexing to finish.
+Wait for indexing to complete.
 
-Select the documents you want to search.
+Select the documents to search.
 
-Ask a question whose answer appears in those documents.
+Ask a question based on their contents.
 
-Review both the generated answer and the retrieved source cards.
+Review the generated answer and retrieved sources.
 
-For the best results, use text-based PDFs with extractable content.
-
-Retrieval Configuration
-
-Retrieval behavior can be calibrated through the following settings:
-
-Setting
-
-Purpose
-
-top_k
-
-Maximum number of chunks returned
-
-min_similarity_score
-
-Minimum relevance score accepted
-
-document_ids
-
-Documents included in the search
-
-Chunk size
-
-Amount of text stored in each chunk
-
-Overlap
-
-Context shared between adjacent chunks
-
-These values should be adjusted using controlled retrieval tests. Changing them without evaluation may reduce answer quality or introduce irrelevant context.
+Text-based PDFs with extractable content provide the best results. Image-only scanned PDFs require OCR, which is not included in the current release.
 
 Validation
 
-The v0.1 pipeline was verified through manual smoke tests covering:
+Version v0.1 was manually verified with:
 
 PDF and TXT ingestion
 
+chunk and embedding count checks
+
 normalized source_path values
 
-chunk and embedding count verification
-
-relevant document questions
-
-completely unrelated questions
+relevant and unrelated questions
 
 retrieval and source matching
 
 hallucination fallback behavior
 
-multi-document queries
+multi-document retrieval
 
-empty questions
+empty and invalid inputs
 
-missing document selection
+unsupported and corrupted files
 
-unsupported file types
-
-empty and corrupted documents
-
-frontend loading states
-
-controlled error messages
-
-responsive interface behavior
+frontend loading and error states
 
 complete document-to-answer workflows
 
-No critical issue remained after the final manual smoke tests. An automated test suite is not included in v0.1.
+Automated tests are not included in v0.1.
 
 Known Limitations
 
-Large documents require more ingestion time because parsing, chunking, and embedding generation run locally.
+Large documents take longer to ingest because processing runs locally.
 
-Processing speed depends on document size, chunk count, model selection, and available hardware.
+Performance depends on document size, chunk count, model selection, hardware, and execution provider.
 
-The current Phi-4 Mini model is designed for local inference, but answer quality still depends on the retrieved context, prompt constraints, and available hardware.
+Phi-4 Mini's answer quality depends on the retrieved context and prompt constraints.
 
-Semantic retrieval currently uses direct cosine similarity, which may become slower as the knowledge base grows.
+Direct cosine similarity may become slower as the knowledge base grows.
 
-Only PDF and TXT files are supported.
+Only PDF and TXT files are currently supported.
 
-Image-only scanned PDFs require OCR, which is not included in v0.1.
+Scanned PDFs require a separate OCR stage.
 
-The current release is designed primarily for local, single-user usage.
+The current release is intended for local, single-user use.
 
 Roadmap
-
-Potential improvements for future releases:
-
-Compare Phi-4 Mini and larger Qwen models
 
 Add hybrid semantic and keyword retrieval
 
 Add a reranking stage
 
-Support OCR for scanned PDFs
+Add OCR support
 
 Add conversation memory
 
-Add background document indexing
+Add background indexing and progress reporting
 
-Display detailed ingestion progress
-
-Build an automated retrieval evaluation suite
+Add automated retrieval evaluation
 
 Add approximate nearest-neighbor search
 
-Provide Docker-based installation
+Add Docker-based setup
 
 Privacy
 
-The application is designed to run locally. Uploaded documents, generated embeddings, retrieved passages, and model prompts are processed on the user's device.
-
-Generated databases, uploaded documents, environment files, and secrets should not be committed to version control.
-
-Project Background
-
-This application was developed as a 20-day computer engineering internship project focused on:
-
-Retrieval-Augmented Generation,
-
-offline and local AI systems,
-
-semantic search,
-
-backend and frontend integration,
-
-prompt grounding,
-
-and responsible source-aware generation.
-
-The project evolved from an initial RAG prototype into a complete FastAPI and React application with local inference and end-to-end document retrieval.
+Uploaded documents, embeddings, retrieved passages, and prompts are processed on the user's device. Generated databases, uploaded files, environment files, and secrets should not be committed to version control.
 
 License
 
-This project is available under the MIT License.
+This project is licensed under the MIT License.
 
-<div align="center">
+Author
 
-Built locally. Grounded in your documents.
-
-Microsoft Foundry Local · Python · FastAPI · React · SQLite
-
-<br>
-
-<sub>Developed by <a href="https://github.com/ilydozttrk">İlayda Öztürk</a></sub>
-
-</div>
+İlayda Öztürk
