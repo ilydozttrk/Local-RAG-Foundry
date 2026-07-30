@@ -46,7 +46,7 @@ The application is designed around three principles:
 
 | Local Knowledge Base | Grounded Answer |
 |---|---|
-| ![Local RAG application overview](docs/screenshots/app-overview.png) | ![Grounded answer with source cards](docs/screenshots/grounded-answer.png) |
+| ![Local RAG application overview](docs/screenshots/app-overview.png) | ![Grounded answer with source cards](docs/screenshots/grounded-answers.png) |
 | Local knowledge base and document selection | Generated answer with retrieved sources |
 
 ---
