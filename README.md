@@ -1,437 +1,451 @@
-<h1 align="center">Local RAG AI Assistant with Microsoft Foundry Local</h1>
+<div align="center">
 
-<p align="center">
-  A privacy-first, fully local Retrieval-Augmented Generation assistant for grounded question answering over PDF and TXT documents.
-</p>
+# Local RAG AI Assistant
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12"/>
-  <img src="https://img.shields.io/badge/Microsoft-Foundry%20Local-0078D4?style=for-the-badge&logo=microsoft&logoColor=white" alt="Microsoft Foundry Local"/>
-  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
-  <img src="https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React and TypeScript"/>
-  <img src="https://img.shields.io/badge/SQLite-Database-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"/>
-  <img src="https://img.shields.io/badge/Status-v0.1-success?style=for-the-badge" alt="Status v0.1"/>
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License"/>
-</p>
+### Private, source-grounded document intelligence with Microsoft Foundry Local
 
-Overview
+Ask questions across your PDF and TXT documents without sending their contents to a cloud inference API.
 
-Local RAG AI Assistant is a full-stack application that answers questions using information retrieved from user-selected documents. Parsing, chunking, embedding generation, retrieval, prompt construction, and language-model inference all run locally.
+<br>
 
-The project combines:
+[![Microsoft Foundry Local](https://img.shields.io/badge/Microsoft-Foundry_Local-0078D4?style=flat-square&logo=microsoft&logoColor=white)](https://github.com/microsoft/Foundry-Local)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-TypeScript-61DAFB?style=flat-square&logo=react&logoColor=101010)](https://react.dev/)
+[![SQLite](https://img.shields.io/badge/SQLite-Knowledge_Base-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![License](https://img.shields.io/badge/License-MIT-8B5CF6?style=flat-square)](LICENSE)
 
-a Python and FastAPI backend,
+<br>
 
-a React, Vite, and TypeScript frontend,
+[Overview](#overview) ·
+[Features](#features) ·
+[Architecture](#architecture) ·
+[Installation](#installation) ·
+[Usage](#usage) ·
+[Limitations](#known-limitations)
 
-SQLite document storage,
+</div>
 
-a local embedding model,
+---
 
-and a local LLM served through Microsoft Foundry Local.
+## Overview
 
-This local-first design keeps uploaded documents and model requests on the user's device while providing source-aware, grounded answers without a cloud inference API.
+**Local RAG AI Assistant** is a full-stack Retrieval-Augmented Generation application that answers questions using information retrieved from user-selected documents.
 
-Key Features
+The complete pipeline runs locally:
 
-Fully local RAG workflow
+> document parsing → text chunking → embeddings → semantic retrieval → context construction → local generation
 
-PDF and TXT document ingestion
+Uploaded documents, embeddings, prompts, and retrieved context remain on the user's machine. Answers are generated from the selected sources and displayed together with the passages used during retrieval.
 
-Shared text normalization for parsed documents
+### Why this project?
 
-Configurable overlapping chunk generation
+Cloud-based AI tools are convenient, but uploading private documents to external services is not always appropriate. This project explores a local-first alternative that combines:
 
-Local embedding generation
+- document-aware question answering,
+- semantic retrieval,
+- transparent source attribution,
+- hallucination control,
+- and offline language-model inference.
 
-SQLite storage for documents, chunks, and embeddings
+---
 
-Document-filtered semantic retrieval using cosine similarity
+## Features
 
-Configurable Top-K retrieval and minimum similarity threshold
+<table>
+<tr>
+<td width="50%" valign="top">
 
-Structured context with source metadata
+### Document intelligence
 
-Grounded prompt instructions designed to reduce hallucinations
+- PDF and TXT ingestion
+- Shared text normalization
+- Overlapping text chunking
+- Local embedding generation
+- SQLite document storage
+- Normalized source paths
 
-Local streaming response generation
+</td>
+<td width="50%" valign="top">
 
-FastAPI backend
+### Grounded answers
 
-Modern React chat interface
+- Semantic similarity search
+- Document-filtered retrieval
+- Configurable relevance threshold
+- Structured source context
+- Controlled fallback responses
+- Source cards with similarity scores
 
-Multiple document selection
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
-Markdown answer rendering
+### Local-first architecture
 
-Source cards for retrieved evidence
+- Microsoft Foundry Local inference
+- No cloud model API required
+- Local document processing
+- Local knowledge base
+- Streaming response generation
+- Privacy-oriented workflow
 
-Upload, loading, auto-scroll, responsive layout, and controlled error states
+</td>
+<td width="50%" valign="top">
 
-Current Status
+### Full-stack experience
 
-Component
-
-Status
-
-PDF and TXT parsing
-
-✅
-
-Text normalization and chunking
-
-✅
-
-Local embeddings
-
-✅
-
-SQLite storage
-
-✅
-
-Semantic retrieval
-
-✅
-
-Similarity threshold and document filtering
-
-✅
-
-Context and prompt construction
-
-✅
-
-Local response generation
-
-✅
-
-FastAPI integration
-
-✅
-
-React frontend
-
-✅
-
-Source display and multi-document queries
-
-✅
-
-End-to-end and resilience smoke tests
-
-✅
-
-Initial release
-
-v0.1
-
-Architecture
-
-flowchart TD
-    A["PDF / TXT Upload"] --> B["Parse & Normalize"]
-    B --> C["Chunk Text"]
-    C --> D["Generate Local Embeddings"]
-    D --> E["SQLite Knowledge Base"]
-    F["User Question"] --> G["Query Embedding"]
-    E --> H["Filtered Semantic Retrieval"]
-    G --> H
-    H --> I["Context & Prompt Builder"]
-    I --> J["Microsoft Foundry Local LLM"]
-    J --> K["Streamed Answer & Sources"]
-
-Ingestion flow
-
-The user uploads a PDF or TXT document.
-
-The backend validates and parses the file.
-
-Extracted text is normalized.
-
-Text is split into overlapping chunks.
-
-A local embedding is generated for every chunk.
-
-Document metadata, chunks, and embeddings are stored in SQLite.
-
-Default chunking values:
-
-Setting
-
-Value
-
-Chunk size
-
-600
-
-Overlap
-
-80
-
-Minimum chunk size
-
-50
-
-Query flow
-
-The user selects one or more indexed documents and submits a question.
-
-The question is converted into an embedding with the same embedding model used during ingestion.
-
-Candidate chunks are filtered to the selected document IDs.
-
-Cosine similarity scores are calculated and ranked.
-
-Results below min_similarity_score are excluded.
-
-Retrieved chunks are converted into structured source blocks.
-
-The prompt instructs the model to answer only from the provided context and preserve the user's language.
-
-The local model streams the answer to the frontend.
-
-The interface displays the answer together with its source cards.
-
-When no sufficiently relevant chunk is available, the pipeline returns a controlled fallback instead of asking the model to guess.
-
-Context and Grounding
-
-Each retrieved passage is passed to the model in an explicit source block:
-
+- FastAPI backend
+- React + TypeScript frontend
+- Multiple document selection
+- Markdown answer rendering
+- Loading and error states
+- Responsive interface
+
+</td>
+</tr>
+</table>
+
+---
+
+## Project Status
+
+> **v0.1 — Initial working release**
+
+| Component | Status |
+|---|:---:|
+| PDF and TXT parsing | ✅ |
+| Text normalization and chunking | ✅ |
+| Local embedding generation | ✅ |
+| SQLite knowledge base | ✅ |
+| Semantic retrieval | ✅ |
+| Document filtering | ✅ |
+| Similarity threshold | ✅ |
+| Context and prompt construction | ✅ |
+| Local response generation | ✅ |
+| FastAPI integration | ✅ |
+| React interface | ✅ |
+| Source attribution | ✅ |
+| Multi-document retrieval | ✅ |
+| End-to-end verification | ✅ |
+
+The complete document-to-answer pipeline has been implemented and tested.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph Ingestion["Document Ingestion"]
+        A["PDF / TXT"] --> B["Parse & Normalize"]
+        B --> C["Create Chunks"]
+        C --> D["Generate Embeddings"]
+        D --> E[("SQLite Knowledge Base")]
+    end
+
+    subgraph Retrieval["Question Answering"]
+        F["User Question"] --> G["Query Embedding"]
+        G --> H["Semantic Retrieval"]
+        E --> H
+        H --> I["Context Builder"]
+        I --> J["Foundry Local LLM"]
+        J --> K["Answer + Sources"]
+    end
+```
+
+### Ingestion pipeline
+
+1. The user uploads a PDF or TXT document.
+2. The backend validates and parses the file.
+3. Extracted text is normalized.
+4. The text is divided into overlapping chunks.
+5. A local embedding is generated for every chunk.
+6. Documents, chunks, metadata, and embeddings are stored in SQLite.
+
+| Chunking setting | Default |
+|---|---:|
+| Chunk size | `600` |
+| Overlap | `80` |
+| Minimum chunk size | `50` |
+
+### Retrieval pipeline
+
+1. The user selects one or more indexed documents.
+2. The question is converted into an embedding.
+3. Retrieval is limited to the selected document IDs.
+4. Cosine similarity scores are calculated.
+5. Results below the relevance threshold are removed.
+6. The remaining chunks are converted into structured context.
+7. The local model generates an answer using only that context.
+8. The answer and its sources are streamed to the interface.
+
+If no sufficiently relevant passage is found, the system returns a controlled fallback response instead of asking the model to guess.
+
+---
+
+## Source-Aware Context
+
+Retrieved passages are sent to the model in structured source blocks:
+
+```text
 <SOURCE_1>
-filename: ...
-source_path: ...
-document_id: ...
-chunk_index: ...
-similarity_score: ...
+filename: example.pdf
+source_path: data/uploads/example.pdf
+document_id: 1
+chunk_index: 3
+similarity_score: 0.82
 
 Retrieved document content...
 </SOURCE_1>
+```
 
-This structure preserves provenance and makes it easier to verify that the displayed source matches the context used to produce an answer.
+This structure preserves provenance throughout the RAG pipeline and makes it possible to verify whether the displayed source matches the context used for the answer.
 
-Technology Stack
+---
 
-Layer
+## Technology Stack
 
-Technology
+| Layer | Technology |
+|---|---|
+| Local inference | Microsoft Foundry Local |
+| Chat model | Qwen2.5-0.5B |
+| Backend | Python 3.12, FastAPI |
+| Frontend | React, TypeScript, Vite |
+| Database | SQLite |
+| Retrieval | Local embeddings, cosine similarity |
+| Documents | PDF, TXT |
 
-Local model runtime
+---
 
-Microsoft Foundry Local
+## Installation
 
-Backend
+### Prerequisites
 
-Python 3.12, FastAPI
+Before starting, install:
 
-Frontend
+- Python 3.12
+- Node.js and npm
+- Git
+- Microsoft Foundry Local
+- A compatible local chat model and embedding model
 
-React, Vite, TypeScript
+### 1. Clone the repository
 
-Database
-
-SQLite
-
-Retrieval
-
-Local embeddings, cosine similarity
-
-Current chat model
-
-Qwen2.5-0.5B
-
-Supported documents
-
-PDF, TXT
-
-Installation
-
-Prerequisites
-
-Python 3.12
-
-Node.js and npm
-
-Git
-
-Microsoft Foundry Local
-
-A compatible local chat model and embedding model
-
-1. Clone the repository
-
+```bash
 git clone https://github.com/ilydozttrk/Local-RAG-Foundry.git
 cd Local-RAG-Foundry
+```
 
-2. Create and activate a virtual environment
+### 2. Create a virtual environment
 
-Windows PowerShell:
+#### Windows PowerShell
 
+```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+```
 
-macOS or Linux:
+#### macOS or Linux
 
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
 
-3. Install backend dependencies
+### 3. Install backend dependencies
 
+```bash
 pip install -r requirements.txt
+```
 
-4. Verify Microsoft Foundry Local
+### 4. Verify Foundry Local
 
+```bash
 foundry service status
 foundry model list
+```
 
-Download or start the models configured by the project before launching the backend. Model aliases and commands may differ between Foundry Local versions and hardware configurations.
+Make sure the models configured for the project are available before starting the backend.
 
-5. Install frontend dependencies
+> Foundry Local model aliases and execution providers may vary depending on the installed version and hardware.
 
+### 5. Install frontend dependencies
+
+```bash
 cd frontend
 npm install
+```
 
-Running the Application
+---
 
-Use two terminals so the backend and frontend can run together.
+## Running the Application
 
-Backend
+The backend and frontend must run in separate terminals.
 
-From the repository root, activate the virtual environment and start the configured FastAPI application.
+### Backend
 
+From the repository root:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
 python main.py
+```
 
-The API is expected to be available at:
+The API runs at:
 
+```text
 http://127.0.0.1:8000
+```
 
-Frontend
+Interactive FastAPI documentation:
 
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Frontend
+
+In a second terminal:
+
+```bash
 cd frontend
 npm run dev
+```
 
-Vite normally serves the interface at:
+Open:
 
+```text
 http://localhost:5173
+```
 
-If Vite chooses another port because 5173 is already in use, ensure that the backend CORS configuration allows the selected frontend origin.
+> If Vite selects another port, make sure that the backend CORS configuration permits that frontend origin.
 
-Usage
+---
 
-Start Microsoft Foundry Local and the required models.
+## Usage
 
-Start the FastAPI backend.
+1. Start Microsoft Foundry Local and the required models.
+2. Run the FastAPI backend.
+3. Run the React frontend.
+4. Upload one or more PDF or TXT documents.
+5. Wait for local indexing to finish.
+6. Select the documents you want to search.
+7. Ask a question whose answer appears in those documents.
+8. Review both the generated answer and the retrieved source cards.
 
-Start the React frontend.
+For the best results, use text-based PDFs with extractable content.
 
-Upload one or more PDF or TXT documents.
+---
 
-Wait until indexing is complete.
+## Retrieval Configuration
 
-Select the documents to use.
+Retrieval behavior can be calibrated through the following settings:
 
-Ask a question whose answer is contained in the selected documents.
+| Setting | Purpose |
+|---|---|
+| `top_k` | Maximum number of chunks returned |
+| `min_similarity_score` | Minimum relevance score accepted |
+| `document_ids` | Documents included in the search |
+| Chunk size | Amount of text stored in each chunk |
+| Overlap | Context shared between adjacent chunks |
 
-Review the generated answer and source cards.
+These values should be adjusted using controlled retrieval tests. Changing them without evaluation may reduce answer quality or introduce irrelevant context.
 
-For best results, use text-based PDFs with extractable content. Scanned image-only PDFs require OCR, which is not part of the current release.
+---
 
-Retrieval Configuration
+## Validation
 
-Retrieval behavior can be calibrated through:
+The v0.1 pipeline was tested with:
 
-top_k — maximum number of candidate chunks returned,
-
-min_similarity_score — minimum relevance score required for a chunk,
-
-document_ids — selected documents used to constrain the search,
-
-chunk size and overlap — ingestion-time settings that affect retrieval granularity.
-
-These values should be adjusted using controlled test documents rather than changed without evaluation.
-
-Validation
-
-The v0.1 pipeline was verified with:
-
-PDF and TXT uploads,
-
-chunk and embedding count checks,
-
-normalized source_path values,
-
-relevant and unrelated questions,
-
-retrieval accuracy and source matching,
-
-hallucination fallback behavior,
-
-multi-document retrieval,
-
-empty or invalid input scenarios,
-
-unsupported and corrupted files,
-
-loading and error states,
-
-responsive frontend behavior,
-
-and end-to-end document-to-answer workflows.
+- PDF and TXT ingestion
+- normalized `source_path` values
+- chunk and embedding count verification
+- relevant document questions
+- completely unrelated questions
+- retrieval and source matching
+- hallucination fallback behavior
+- multi-document queries
+- empty questions
+- missing document selection
+- unsupported file types
+- empty and corrupted documents
+- frontend loading states
+- controlled error messages
+- responsive interface behavior
+- complete document-to-answer workflows
 
 No critical issue remained after the final smoke tests.
 
-Known Limitations
+---
 
-Ingestion time increases for large documents because parsing, chunking, and embedding generation are performed entirely on the local device.
+## Known Limitations
 
-Processing speed depends on document size, generated chunk count, model choice, and available hardware.
+- Large documents require more ingestion time because parsing, chunking, and embedding generation run locally.
+- Processing speed depends on document size, chunk count, model selection, and available hardware.
+- The current `Qwen2.5-0.5B` model is lightweight, but its answer quality is more limited than that of larger models.
+- Semantic retrieval currently uses direct cosine similarity, which may become slower as the knowledge base grows.
+- Only PDF and TXT files are supported.
+- Image-only scanned PDFs require OCR, which is not included in v0.1.
+- The current release is designed primarily for local, single-user usage.
 
-The current Qwen2.5-0.5B chat model is lightweight and suitable for local testing, but answer quality is more limited than with larger models.
+---
 
-Semantic retrieval currently uses direct cosine similarity and may become slower as the knowledge base grows substantially.
+## Roadmap
 
-Only PDF and TXT ingestion are supported.
+Potential improvements for future releases:
 
-Image-only scanned PDFs are not processed without a separate OCR stage.
+- [ ] Compare Phi-4 Mini and larger Qwen models
+- [ ] Add hybrid semantic and keyword retrieval
+- [ ] Add a reranking stage
+- [ ] Support OCR for scanned PDFs
+- [ ] Add conversation memory
+- [ ] Add background document indexing
+- [ ] Display detailed ingestion progress
+- [ ] Build an automated retrieval evaluation suite
+- [ ] Add approximate nearest-neighbor search
+- [ ] Provide Docker-based installation
 
-The application is intended for local development and single-user use in its current form.
+---
 
-Future Improvements
+## Privacy
 
-Compare Phi-4 Mini and larger Qwen models using the same evaluation questions
-
-Add hybrid semantic and keyword retrieval
-
-Add reranking for retrieved chunks
-
-Add OCR support for scanned PDFs
-
-Add conversation memory
-
-Add incremental and background indexing
-
-Add ingestion progress reporting for large documents
-
-Add an automated retrieval evaluation suite
-
-Add approximate nearest-neighbor search for larger collections
-
-Add Docker-based setup and packaging
-
-Privacy
-
-The system is designed to run locally. Uploaded documents, embeddings, retrieved context, and prompts are processed on the user's machine. Users should still review their own environment, model configuration, logs, and repository contents before working with sensitive documents.
+The application is designed to run locally. Uploaded documents, generated embeddings, retrieved passages, and model prompts are processed on the user's device.
 
 Generated databases, uploaded documents, environment files, and secrets should not be committed to version control.
 
-License
+---
 
-This project is licensed under the MIT License. See the LICENSE file for details.
+## Project Background
 
-Acknowledgements
+This application was developed as a **20-day computer engineering internship project** focused on:
 
-Developed as a 20-day internship project focused on offline AI, Retrieval-Augmented Generation, and Microsoft Foundry Local.
+- Retrieval-Augmented Generation,
+- offline and local AI systems,
+- semantic search,
+- backend and frontend integration,
+- prompt grounding,
+- and responsible source-aware generation.
+
+The project evolved from an initial RAG prototype into a complete FastAPI and React application with local inference and end-to-end document retrieval.
+
+---
+
+## License
+
+This project is available under the [MIT License](LICENSE).
+
+---
 
 <div align="center">
-  Built with Microsoft Foundry Local, Python, FastAPI, React, and SQLite.
+
+### Built locally. Grounded in your documents.
+
+Microsoft Foundry Local · Python · FastAPI · React · SQLite
+
+<br>
+
+<sub>Developed by <a href="https://github.com/ilydozttrk">İlayda Öztürk</a></sub>
+
 </div>
